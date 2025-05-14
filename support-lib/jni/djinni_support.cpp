@@ -435,8 +435,11 @@ void JniLocalScope::_popLocalFrame(JNIEnv* const env, jobject returnRef) {
     env->PopLocalFrame(returnRef);
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 using WcharConverter = std::wstring_convert<std::codecvt_utf16<wchar_t, 0x10ffff, std::codecvt_mode::little_endian>>;
 using Utf8Converter = std::wstring_convert<std::codecvt_utf8_utf16<char16_t, 0x10ffff, std::codecvt_mode::little_endian>, char16_t>;
+
 
 jstring jniStringFromWString(JNIEnv * env, const std::wstring & str) {
     std::string u16 = WcharConverter{}.to_bytes(str);
@@ -472,6 +475,8 @@ std::string jniUTF8FromString(JNIEnv* env, const jstring jstr) {
     env->ReleaseStringChars(jstr, u16);
     return out;
 }
+
+#pragma clang diagnostic pop
 
 DJINNI_WEAK_DEFINITION
 void jniSetPendingFromCurrent(JNIEnv * env, const char * ctx) noexcept {
