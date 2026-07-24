@@ -205,6 +205,12 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
     val classLookup = jniMarshal.undecoratedTypename(ident, i)
     val baseType = s"::djinni::JniInterface<$cppSelf, $jniSelf>"
 
+    // Kotlin backend: the Java-visible CppProxy is a TOP-LEVEL class `Cpp<Name>` (slash form below),
+    // NOT the old nested `<Name>$CppProxy`. classLookup ends in exactly idJava.ty(ident), so we swap
+    // that trailing segment for `Cpp<Name>`. (Statics -> `Cpp<Name>Statics`, derived where needed.)
+    val simpleName = idJava.ty(ident)
+    val cppProxyClassLookup = classLookup.stripSuffix(simpleName) + "Cpp" + simpleName
+
     def writeJniPrototype(w: IndentWriter) {
       writeJniTypeParams(w, typeParams)
       w.w(s"class $jniSelf final : $baseType").bracedSemi {
@@ -276,7 +282,7 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
 
     def writeJniBody(w: IndentWriter) {
       // Defining ctor/dtor in the cpp file reduces build times
-      val baseClassParam = if (i.ext.cpp) q(classLookup+"$CppProxy") else ""
+      val baseClassParam = if (i.ext.cpp) q(cppProxyClassLookup) else ""
       val jniSelfWithParams = jniSelf + typeParamsSignature(typeParams)
       writeJniTypeParams(w, typeParams)
       w.wl(s"$jniSelfWithParams::$jniSelf() : $baseType($baseClassParam) {}")
@@ -335,20 +341,30 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
         }
       }
       if (i.ext.cpp) {
-        // Generate CEXPORT functions for JNI to call.
-        val classIdentMunged = javaMarshal.fqTypename(ident, i)
+        // Generate CEXPORT functions for JNI to call. Kotlin backend: proxy (instance) methods bind to
+        // the top-level `Cpp<Name>` class; interface statics bind to `Cpp<Name>Statics`. The JNIEXPORT
+        // symbols are therefore mangled from those class names (not the old nested `<Name>$CppProxy`).
+        def mungeClass(fqDotted: String): String = "Java_" + fqDotted
           .replaceAllLiterally("_", "_1")
           .replaceAllLiterally(".", "_")
-        val prefix = "Java_" + classIdentMunged
+        val ifaceFqDotted = javaMarshal.fqTypename(ident, i)
+        val cppProxyFqDotted = ifaceFqDotted.stripSuffix(simpleName) + "Cpp" + simpleName
+        val proxyPrefix = mungeClass(cppProxyFqDotted)
+        val staticsPrefix = mungeClass(cppProxyFqDotted + "Statics")
 
         def methodName(name: String, static: Boolean): String = {
           val methodNameMunged = name.replaceAllLiterally("_", "_1")
-
           if (static)
-            s"${prefix}_$methodNameMunged"
+            s"${staticsPrefix}_$methodNameMunged"
           else
-            s"${prefix}_00024CppProxy_$methodNameMunged"
+            s"${proxyPrefix}_$methodNameMunged"
         }
+
+        // Java-visible name of each native hook: proxy methods are `native_<m>`; interface statics are
+        // instance methods `<m>_native` on Cpp<Name>Statics. (nativeDestroy is emitted directly.)
+        def jniHookName(m: Interface.Method): String =
+          if (m.static) idJava.method(m.ident) + "_native"
+          else "native_" + idJava.method(m.ident)
 
         def nativeHook(name: String, static: Boolean, params: Iterable[Field], ret: Option[TypeRef], f: => Unit) = {
           val paramList = params.map(p => jniMarshal.paramType(p.ty) + " j_" + idJava.local(p.ident)).mkString(", ")
@@ -379,8 +395,7 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
           w.wl(s"delete reinterpret_cast<::djinni::CppProxyHandle<$cppSelf>*>(nativeRef);")
         })
         for (m <- i.methods.filter(m => !m.static || m.lang.java)) {
-          val nativeAddon = if (m.static) "" else "native_"
-          nativeHook(nativeAddon + idJava.method(m.ident), m.static, m.params, m.ret, {
+          nativeHook(jniHookName(m), m.static, m.params, m.ret, {
             //w.wl(s"::${spec.jniNamespace}::JniLocalScope jscope(jniEnv, 10);")
             if (!m.static) w.wl(s"const auto& ref = ::djinni::objectFromHandleAddress<$cppSelf>(nativeRef);")
             m.params.foreach(p => {
@@ -419,8 +434,7 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
               }
             }
             for (m <- proxyMethods) {
-              val nativeAddon = if (m.static) "" else "native_"
-              val javaName = nativeAddon + idJava.method(m.ident)
+              val javaName = jniHookName(m)
               val functionName = methodName(javaName, m.static)
               w.bracedEnd(",") {
                 var signature = jniMarshal.javaMethodSignature(m.params, m.ret)
@@ -429,7 +443,7 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
                 if (!isStaticRecord) {
                   signature = signature.replaceFirst("\\(", "(J")
                 }
-                w.wl(jniNativeMethod(nativeAddon + idJava.method(m.ident), signature, functionName))
+                w.wl(jniNativeMethod(javaName, signature, functionName))
               }
             }
           }
@@ -466,9 +480,13 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
           val i = ty.body.asInstanceOf[Interface]
           val (statics, proxys) = i.methods.partition(i => i.static)
 
-          w.wl(s"djinni::jniRegisterNatives(env, ${q(jniMarshal.undecoratedTypename(ty.ident, ty.body) + "$CppProxy")}, ${jniMarshal.helperClass(ty.ident)}ProxyRecords);")
+          // Kotlin backend class names: proxy -> Cpp<Name>, statics -> Cpp<Name>Statics.
+          val ifaceLookup = jniMarshal.undecoratedTypename(ty.ident, ty.body)
+          val sName = idJava.ty(ty.ident)
+          val proxyLookup = ifaceLookup.stripSuffix(sName) + "Cpp" + sName
+          w.wl(s"djinni::jniRegisterNatives(env, ${q(proxyLookup)}, ${jniMarshal.helperClass(ty.ident)}ProxyRecords);")
           if (statics.nonEmpty) {
-            w.wl(s"djinni::jniRegisterNatives(env, ${q(jniMarshal.undecoratedTypename(ty.ident, ty.body))}, ${jniMarshal.helperClass(ty.ident)}StaticRecords);")
+            w.wl(s"djinni::jniRegisterNatives(env, ${q(proxyLookup + "Statics")}, ${jniMarshal.helperClass(ty.ident)}StaticRecords);")
           }
         }
       }

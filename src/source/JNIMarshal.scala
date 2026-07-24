@@ -102,9 +102,13 @@ class JNIMarshal(spec: Spec) extends Marshal(spec) {
         case MOptional => throw new AssertionError("nested optional?")
         case m => javaTypeSignature(tm.args.head)
       }
-      case MList => "Ljava/util/ArrayList;"
-      case MSet => "Ljava/util/HashSet;"
-      case MMap => "Ljava/util/HashMap;"
+      // Kotlin backend: records/params/returns use the read-only interfaces List/Set/Map (see
+      // KotlinMarshal), so the JVM field/method descriptors must be the interface types, not the
+      // concrete java.util.{ArrayList,HashSet,HashMap}. The support-lib still *creates* ArrayList/
+      // HashSet/HashMap at runtime (they are assignable to these interface-typed slots).
+      case MList => "Ljava/util/List;"
+      case MSet => "Ljava/util/Set;"
+      case MMap => "Ljava/util/Map;"
       case MArray => s"[${javaTypeSignature(tm.args.head)}"
       case MVoid => "Ljava/lang/Void;"
     }
