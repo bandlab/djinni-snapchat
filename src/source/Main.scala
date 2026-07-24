@@ -50,6 +50,8 @@ object Main {
     var javaImplementAndroidOsParcelable : Boolean = false
     var javaUseFinalForRecord: Boolean = true
     var javaGenInterface: Boolean = false
+    var kotlinOutFolder: Option[File] = None
+    var kotlinPackage: Option[String] = None
     var jniOutFolder: Option[File] = None
     var jniHeaderOutFolderOptional: Option[File] = None
     var jniNamespace: String = "djinni_generated"
@@ -143,6 +145,11 @@ object Main {
         .text("Whether generated Java classes for records should be marked 'final' (default: true). ")
       opt[Boolean]("java-gen-interface").valueName("<true/false>").foreach(x => javaGenInterface = x)
         .text("Generate Java interface instead of abstract class.")
+      note("")
+      opt[File]("kotlin-out").valueName("<out-folder>").foreach(x => kotlinOutFolder = Some(x))
+        .text("The output for the Kotlin files (Generator disabled if unspecified). Emits idiomatic Kotlin split into api/ (pure declarations) and impl/ (CppProxy).")
+      opt[String]("kotlin-package").valueName("...").foreach(x => kotlinPackage = Some(x))
+        .text("The package name to use for generated Kotlin classes (defaults to mirroring --java-package for JVM ABI parity).")
       note("")
       opt[File]("cpp-out").valueName("<out-folder>").foreach(x => cppOutFolder = Some(x))
         .text("The output folder for C++ files (Generator disabled if unspecified).")
@@ -294,6 +301,9 @@ object Main {
       System.exit(1); return
     }
 
+    // Kotlin reuses the Java package (and Java ident styles) so the JVM-visible names it emits
+    // are identical to today's generated Java, keeping the existing JNI layer binding intact.
+    val kotlinPackageResolved = if (kotlinPackage.isDefined) kotlinPackage else javaPackage
     val cppHeaderOutFolder = if (cppHeaderOutFolderOptional.isDefined) cppHeaderOutFolderOptional else cppOutFolder
     val jniHeaderOutFolder = if (jniHeaderOutFolderOptional.isDefined) jniHeaderOutFolderOptional else jniOutFolder
     val jniClassIdentStyle = jniClassIdentStyleOptional.getOrElse(cppIdentStyle.ty)
@@ -377,6 +387,8 @@ object Main {
       javaImplementAndroidOsParcelable,
       javaUseFinalForRecord,
       javaGenInterface,
+      kotlinOutFolder,
+      kotlinPackageResolved,
       cppOutFolder,
       cppHeaderOutFolder,
       cppIncludePrefix,
