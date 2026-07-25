@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# Generate cpp + jni + kotlin for the curated runtime fixture using the
-# kotlin-generator djinni build (no Bazel). Kotlin replaces the Java backend.
+# Generate cpp + jni + kotlin for the curated runtime fixture via the Bazel-free
+# scalac generator runner (src/run-scalac). Kotlin replaces the Java backend.
+# Override the generator with DJINNI_RUN (e.g. point it at src/run for Bazel).
 set -euo pipefail
 
-SCRATCH="/private/tmp/claude-503/-Users-gildor-work-bandlab-audio-engine/288e8c3e-aa84-4907-a1b4-a80628f84e79/scratchpad"
-KR="$SCRATCH/kt-runtime"
-BAR="$SCRATCH/djinni-build/build-and-run.sh"
+KR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DJINNI="$(cd "$KR/../.." && pwd)"                 # test-suite/kotlin-runtime-check -> repo root
+BAR="${DJINNI_RUN:-$DJINNI/src/run-scalac}"
 PKG="com.snapchat.djinni.rt"
 
 rm -rf "$KR/gen"
 mkdir -p "$KR/gen/cpp" "$KR/gen/jni" "$KR/gen/kotlin"
 
-cd "$KR/idl"
+# kt_runtime.djinni @imports the stock enum.djinni, resolved via the include path.
 bash "$BAR" -- \
   --cpp-out       "$KR/gen/cpp" \
   --cpp-namespace rt \
@@ -22,7 +23,7 @@ bash "$BAR" -- \
   --kotlin-package "$PKG" \
   --java-package   "$PKG" \
   --idl "$KR/idl/kt_runtime.djinni" \
-  --idl-include-path "$KR/idl"
+  --idl-include-path "$DJINNI/test-suite/djinni"
 
 echo "=== generated files ==="
 find "$KR/gen" -type f | sort

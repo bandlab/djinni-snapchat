@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
-# Build the HOST JNI shared library (libktruntime.dylib) from:
-#   - djinni support-lib C++ (core + JNI_OnLoad)
+# Build the HOST JNI shared library (libkruntime.dylib) from:
+#   - djinni support-lib C++ (core + JNI_OnLoad), from this repo's support-lib/
 #   - the generated JNI glue (gen/jni/*.cpp)
 #   - the hand-written C++ impl of runtime_iface (cpp-impl/runtime_iface_impl.cpp)
-# Host Apple clang++ + a JDK that ships jni.h (no NDK, no Android).
+# Host Apple clang++ + a JDK that ships jni.h (no NDK, no Android, no Bazel).
 set -euo pipefail
 
-SCRATCH="/private/tmp/claude-503/-Users-gildor-work-bandlab-audio-engine/288e8c3e-aa84-4907-a1b4-a80628f84e79/scratchpad"
-KR="$SCRATCH/kt-runtime"
-SL="$SCRATCH/djinni-snapchat/support-lib"
+KR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DJINNI="$(cd "$KR/../.." && pwd)"
+SL="$DJINNI/support-lib"
 JAVA_HOME="${JAVA_HOME:-$HOME/.sdkman/candidates/java/17.0.20-zulu}"
 
 # -DNDEBUG => release semantics (matches how the app/production JNI lib is built).
-# Without it, the support-lib Marshal.hpp asserts IsInstanceOf(j, java.util.ArrayList/
-# HashMap/HashSet), which idiomatic Kotlin listOf()/mapOf()/setOf() (Arrays$ArrayList /
-# SingletonMap / LinkedHashSet) fail. See REPORT.md "Findings". Set KR_DEBUG=1 to reproduce
-# that debug-mode abort.
+# Set KR_DEBUG=1 to build with asserts on; the support-lib Marshal.hpp collection
+# guards now accept any java/util List/Set/Map, so idiomatic Kotlin listOf()/mapOf()/
+# setOf() round-trip even in debug (previously they aborted on IsInstanceOf).
 OPT="-DNDEBUG -O2"
 [ "${KR_DEBUG:-0}" = "1" ] && OPT="-O0 -g"
 clang++ -std=c++17 -shared -fPIC $OPT \

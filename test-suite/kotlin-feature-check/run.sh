@@ -17,12 +17,13 @@ set -uo pipefail
 # Paths
 # ---------------------------------------------------------------------------
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRATCH="/private/tmp/claude-503/-Users-gildor-work-bandlab-audio-engine/288e8c3e-aa84-4907-a1b4-a80628f84e79/scratchpad"
-DJINNI_WT="${DJINNI_WT:-/Users/gildor/work/bandlab-audio-engine-wt-djinni-kotlin/engine/generated/djinni}"
-BUILD_RUN="${BUILD_RUN:-$SCRATCH/djinni-build/build-and-run.sh}"
+# HERE = test-suite/kotlin-feature-check ; the djinni repo root is two levels up.
+DJINNI_WT="${DJINNI_WT:-$(cd "$HERE/../.." && pwd)}"
+# Bazel-free generator runner (scalac). Override BUILD_RUN to use src/run (Bazel) if preferred.
+BUILD_RUN="${BUILD_RUN:-$DJINNI_WT/src/run-scalac}"
 TS="$DJINNI_WT/test-suite"
 FIXTURES_STOCK="$TS/djinni"
-FIXTURES_LOCAL="$HERE/fixtures"
+FIXTURES_LOCAL="$FIXTURES_STOCK"
 OUTROOT="$HERE/out"
 PKG="com.dropbox.djinni.test"
 

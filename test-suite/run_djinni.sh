@@ -63,13 +63,18 @@ elif [ $# -eq 1 ]; then
     exit
 fi
 
-# Build Djinni
-"$base_dir/../src/build.sh"
+# Build Djinni. Default is Bazel (src/build.sh + src/run-assume-built). For a
+# Bazel-free regen set DJINNI_NO_BAZEL=1 and DJINNI_RUNNER=<repo>/src/run-scalac
+# (the scalac runner self-builds, so no separate build step is needed).
+RUNNER="${DJINNI_RUNNER:-$base_dir/../src/run-assume-built}"
+if [ -z "${DJINNI_NO_BAZEL:-}" ]; then
+    "$base_dir/../src/build.sh"
+fi
 
 # Run Djinni generation
 [ ! -e "$temp_out" ] || rm -r "$temp_out"
 (cd "$base_dir" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -103,7 +108,7 @@ fi
     --yaml-prefix "test_" \
     \
     --idl "$wchar_in_relative" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -145,7 +150,7 @@ fi
     \
     --idl "$in_relative" \
     --idl-include-path "djinni/vendor" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -171,7 +176,7 @@ fi
     --objcpp-function-prologue-file "../../handwritten-src/cpp/objcpp-prologue.hpp" \
     \
     --idl "$prologue_in_relative" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -202,7 +207,7 @@ fi
     --ident-objc-const NativeFooBar! \
     \
     --idl "$ident_explicit_in_relative" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -239,7 +244,7 @@ fi
 # Make sure we can parse back our own generated YAML file
 cp "$base_dir/djinni/yaml-test.djinni" "$temp_out/yaml"
 (cd "$base_dir" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --ident-java-field mFooBar \

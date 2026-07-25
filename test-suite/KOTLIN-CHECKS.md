@@ -38,11 +38,24 @@ round-trips through the *new* Kotlin surface — static factory (non-null, via t
 `StaticsCompat`), property get/set, enum, optional, `List`/`Map`, and a record echoed
 JVM→C++→JVM and built C++→JVM.
 
-## Running 2 & 3
+## Running the checks — no Bazel required
 
-The compile-check (1) is turnkey. Checks 2 and 3 must **run the generator**, so they
-need it available — either the repo's `src/run` (Bazel) or a no-Bazel scalac runner —
-selected via env (`BUILD_RUN` / `DJINNI_WT`; see each script's header). They were
-developed and verified green with a scalac runner. Wiring 1–3 as first-class Bazel
-`test-suite/BUILD` targets (a `kt_jvm_library` compile target + a `kt_jvm_test` runtime
-target beside the existing `java_test`) is the natural next step.
+All three are turnkey and **Bazel-free**:
+
+- **(1)** is self-contained — only `kotlinc` + `javac` (builds the support-lib classpath
+  from this repo's `support-lib/java`).
+- **(2)** and **(3)** run the generator via **`src/run-scalac`** — a Bazel-free build+run
+  of the generator: it compiles `src/source/**/*.scala` with `scalac` (JDK 8 + the three
+  Maven deps) and runs `djinni.Main`. Override with `DJINNI_RUN` / `BUILD_RUN` to use
+  `src/run` (Bazel) instead. (3) also builds its native `.dylib` with host `clang++` — no
+  NDK, no Bazel.
+
+Regenerate the whole golden without Bazel:
+
+```
+DJINNI_NO_BAZEL=1 DJINNI_RUNNER="$PWD/../src/run-scalac" ./run_djinni.sh
+```
+
+Promoting 1–3 to first-class Bazel `test-suite/BUILD` targets (a `kt_jvm_library` compile
+target + a `kt_jvm_test` runtime target beside `java_test`) is *optional* — the whole
+Kotlin flow already runs end to end with zero Bazel.
