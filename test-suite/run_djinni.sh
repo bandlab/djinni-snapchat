@@ -37,6 +37,7 @@ java_out="$base_dir/generated-src/java/com/dropbox/djinni/test"
 wasm_out="$base_dir/generated-src/wasm"
 ts_out="$base_dir/generated-src/ts"
 yaml_out="$base_dir/generated-src/yaml"
+kotlin_out="$base_dir/generated-src/kotlin"
 
 java_package="com.dropbox.djinni.test"
 
@@ -131,6 +132,9 @@ fi
     --wasm-namespace "testsuite" \
     --ts-out "$temp_out_relative/ts" \
     --ts-module "test" \
+    \
+    --kotlin-out "$temp_out_relative/kotlin" \
+    --kotlin-package $java_package \
     \
     --list-in-files "./generated-src/inFileList.txt" \
     --list-out-files "./generated-src/outFileList.txt"\
@@ -279,6 +283,7 @@ mirror "jni" "$temp_out/jni" "$jni_out"
 mirror "objc" "$temp_out/objc" "$objc_out"
 mirror "wasm" "$temp_out/wasm" "$wasm_out"
 mirror "ts" "$temp_out/ts" "$ts_out"
+mirror "kotlin" "$temp_out/kotlin" "$kotlin_out"
 
 date > "$gen_stamp"
 
