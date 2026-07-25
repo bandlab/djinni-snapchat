@@ -7,5 +7,17 @@ data class RecordWithNestedDerivings(
     val key: Int,
     val rec: RecordWithDerivings,
 ) : Comparable<RecordWithNestedDerivings> {
-    // TODO(kotlin-poc): port field-by-field compareTo from JavaGenerator for deriving(ord).
+
+    override fun compareTo(other: RecordWithNestedDerivings): Int {
+        var tempResult: Int
+        tempResult = this.key.compareTo(other.key)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.rec.compareTo(other.rec)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        return 0
+    }
 }

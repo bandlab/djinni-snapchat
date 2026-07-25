@@ -285,6 +285,15 @@ mirror "wasm" "$temp_out/wasm" "$wasm_out"
 mirror "ts" "$temp_out/ts" "$ts_out"
 mirror "kotlin" "$temp_out/kotlin" "$kotlin_out"
 
+# Optional gate: verify the Kotlin golden actually COMPILES clean under -Werror
+# (not just that its text is stable). Off by default so local regen stays fast;
+# CI should set DJINNI_VERIFY_KOTLIN=1. Downstream consumers build with
+# allWarningsAsErrors=true, so any generator warning must fail here first.
+if [ -n "${DJINNI_VERIFY_KOTLIN:-}" ]; then
+    echo "Verifying Kotlin golden compiles clean (-Werror)..."
+    "$base_dir/kotlin-compile-check/check.sh" || exit 1
+fi
+
 date > "$gen_stamp"
 
 echo "Djinni completed."

@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class RecordWithEmbeddedCppProto(
-    val state: PersistingState,
+    val state: djinni.test2.Test2.PersistingState,
 )

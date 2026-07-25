@@ -6,5 +6,13 @@ package com.dropbox.djinni.test
 data class RecordWithDurationAndDerivings(
     val dt: java.time.Duration,
 ) : Comparable<RecordWithDurationAndDerivings> {
-    // TODO(kotlin-poc): port field-by-field compareTo from JavaGenerator for deriving(ord).
+
+    override fun compareTo(other: RecordWithDurationAndDerivings): Int {
+        var tempResult: Int
+        tempResult = this.dt.compareTo(other.dt)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        return 0
+    }
 }

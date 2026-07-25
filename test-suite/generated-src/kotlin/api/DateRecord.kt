@@ -6,5 +6,13 @@ package com.dropbox.djinni.test
 data class DateRecord(
     val createdAt: java.util.Date,
 ) : Comparable<DateRecord> {
-    // TODO(kotlin-poc): port field-by-field compareTo from JavaGenerator for deriving(ord).
+
+    override fun compareTo(other: DateRecord): Int {
+        var tempResult: Int
+        tempResult = this.createdAt.compareTo(other.createdAt)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        return 0
+    }
 }

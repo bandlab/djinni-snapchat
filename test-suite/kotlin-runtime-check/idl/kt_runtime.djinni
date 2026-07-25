@@ -1,0 +1,42 @@
+@import "enum.djinni"
+
+# Curated runtime fixture for the Kotlin generator HOST round-trip harness.
+# Reuses the REAL test-suite `color` enum from enum.djinni, and defines a single
+# +c interface (C++ implements, Kotlin calls) plus a record that together exercise
+# every marshalling path the harness needs to prove.
+
+runtime_record = record {
+    id: i32;
+    label: string;
+    gain: optional<f64>;
+    tags: list<string>;
+    props: map<string, i64>;
+    fav_color: color;
+}
+
+runtime_iface = interface +c {
+    # non-null static factory -> Kotlin StaticsCompat `RuntimeIface.create(seed)`
+    static create(seed: i32): runtime_iface;
+
+    # record round-trip (JVM builds it, C++ receives + returns it verbatim)
+    id_record(r: runtime_record): runtime_record;
+
+    # record constructed entirely in C++ and marshalled back to the JVM
+    make_record(label: string): runtime_record;
+
+    # enum round-trip: returns the next color in the wheel
+    next_color(c: color): color;
+
+    # optional<string> round-trip
+    id_optional(o: optional<string>): optional<string>;
+
+    # list<i32> round-trip
+    id_list(l: list<i32>): list<i32>;
+
+    # map<string,i64> round-trip
+    id_map(m: map<string, i64>): map<string, i64>;
+
+    # get_/set_ pair -> Kotlin `var seed` property (native_getSeed / native_setSeed)
+    get_seed(): i32;
+    set_seed(s: i32);
+}

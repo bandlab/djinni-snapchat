@@ -13,5 +13,41 @@ data class RecordWithDerivings(
     val d: java.util.Date,
     val s: String,
 ) : Comparable<RecordWithDerivings> {
-    // TODO(kotlin-poc): port field-by-field compareTo from JavaGenerator for deriving(ord).
+
+    override fun compareTo(other: RecordWithDerivings): Int {
+        var tempResult: Int
+        tempResult = this.eight.compareTo(other.eight)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.sixteen.compareTo(other.sixteen)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.thirtytwo.compareTo(other.thirtytwo)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.sixtyfour.compareTo(other.sixtyfour)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.fthirtytwo.compareTo(other.fthirtytwo)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.fsixtyfour.compareTo(other.fsixtyfour)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.d.compareTo(other.d)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        tempResult = this.s.compareTo(other.s)
+        if (tempResult != 0) {
+            return tempResult
+        }
+        return 0
+    }
 }

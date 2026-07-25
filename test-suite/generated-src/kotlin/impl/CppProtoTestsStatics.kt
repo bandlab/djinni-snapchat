@@ -12,11 +12,11 @@ class CppProtoTestsStatics : ProtoTestsStatics {
         // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
     }
 
-    override fun protoToStrings(x: AddressBook): List<String> = protoToStrings_native(x)
-    private external fun protoToStrings_native(x: AddressBook): List<String>
+    override fun protoToStrings(x: djinni.test.Test.AddressBook): List<String> = protoToStrings_native(x)
+    private external fun protoToStrings_native(x: djinni.test.Test.AddressBook): List<String>
 
-    override fun stringsToProto(x: List<String>): AddressBook = stringsToProto_native(x)
-    private external fun stringsToProto_native(x: List<String>): AddressBook
+    override fun stringsToProto(x: List<String>): djinni.test.Test.AddressBook = stringsToProto_native(x)
+    private external fun stringsToProto_native(x: List<String>): djinni.test.Test.AddressBook
 
     override fun embeddedProtoToString(x: RecordWithEmbeddedProto): String = embeddedProtoToString_native(x)
     private external fun embeddedProtoToString_native(x: RecordWithEmbeddedProto): String
@@ -24,11 +24,11 @@ class CppProtoTestsStatics : ProtoTestsStatics {
     override fun stringToEmbeddedProto(x: String): RecordWithEmbeddedProto = stringToEmbeddedProto_native(x)
     private external fun stringToEmbeddedProto_native(x: String): RecordWithEmbeddedProto
 
-    override fun cppProtoToString(x: PersistingState): String = cppProtoToString_native(x)
-    private external fun cppProtoToString_native(x: PersistingState): String
+    override fun cppProtoToString(x: djinni.test2.Test2.PersistingState): String = cppProtoToString_native(x)
+    private external fun cppProtoToString_native(x: djinni.test2.Test2.PersistingState): String
 
-    override fun stringToCppProto(x: String): PersistingState = stringToCppProto_native(x)
-    private external fun stringToCppProto_native(x: String): PersistingState
+    override fun stringToCppProto(x: String): djinni.test2.Test2.PersistingState = stringToCppProto_native(x)
+    private external fun stringToCppProto_native(x: String): djinni.test2.Test2.PersistingState
 
     override fun embeddedCppProtoToString(x: RecordWithEmbeddedCppProto): String = embeddedCppProtoToString_native(x)
     private external fun embeddedCppProtoToString_native(x: RecordWithEmbeddedCppProto): String
@@ -36,18 +36,18 @@ class CppProtoTestsStatics : ProtoTestsStatics {
     override fun stringToEmbeddedCppProto(x: String): RecordWithEmbeddedCppProto = stringToEmbeddedCppProto_native(x)
     private external fun stringToEmbeddedCppProto_native(x: String): RecordWithEmbeddedCppProto
 
-    override fun protoListToStrings(x: List<Person>): List<String> = protoListToStrings_native(x)
-    private external fun protoListToStrings_native(x: List<Person>): List<String>
+    override fun protoListToStrings(x: List<djinni.test.Test.Person>): List<String> = protoListToStrings_native(x)
+    private external fun protoListToStrings_native(x: List<djinni.test.Test.Person>): List<String>
 
-    override fun stringsToProtoList(x: List<String>): List<Person> = stringsToProtoList_native(x)
-    private external fun stringsToProtoList_native(x: List<String>): List<Person>
+    override fun stringsToProtoList(x: List<String>): List<djinni.test.Test.Person> = stringsToProtoList_native(x)
+    private external fun stringsToProtoList_native(x: List<String>): List<djinni.test.Test.Person>
 
-    override fun optionalProtoToString(x: Person?): String = optionalProtoToString_native(x)
-    private external fun optionalProtoToString_native(x: Person?): String
+    override fun optionalProtoToString(x: djinni.test.Test.Person?): String = optionalProtoToString_native(x)
+    private external fun optionalProtoToString_native(x: djinni.test.Test.Person?): String
 
-    override fun stringToOptionalProto(x: String): Person? = stringToOptionalProto_native(x)
-    private external fun stringToOptionalProto_native(x: String): Person?
+    override fun stringToOptionalProto(x: String): djinni.test.Test.Person? = stringToOptionalProto_native(x)
+    private external fun stringToOptionalProto_native(x: String): djinni.test.Test.Person?
 
-    override fun stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<Person, Int> = stringToProtoOutcome_native(x)
-    private external fun stringToProtoOutcome_native(x: String): com.snapchat.djinni.Outcome<Person, Int>
+    override fun stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<djinni.test.Test.Person, Int> = stringToProtoOutcome_native(x)
+    private external fun stringToProtoOutcome_native(x: String): com.snapchat.djinni.Outcome<djinni.test.Test.Person, Int>
 }

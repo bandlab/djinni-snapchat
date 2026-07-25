@@ -7,17 +7,17 @@ package com.dropbox.djinni.test
 // Depend on THIS at call sites so the native surface stays hidden and mockable; a real
 // instance comes from CppProtoTestsStatics (impl), whose construction is the init gate.
 interface ProtoTestsStatics {
-    fun protoToStrings(x: AddressBook): List<String>
-    fun stringsToProto(x: List<String>): AddressBook
+    fun protoToStrings(x: djinni.test.Test.AddressBook): List<String>
+    fun stringsToProto(x: List<String>): djinni.test.Test.AddressBook
     fun embeddedProtoToString(x: RecordWithEmbeddedProto): String
     fun stringToEmbeddedProto(x: String): RecordWithEmbeddedProto
-    fun cppProtoToString(x: PersistingState): String
-    fun stringToCppProto(x: String): PersistingState
+    fun cppProtoToString(x: djinni.test2.Test2.PersistingState): String
+    fun stringToCppProto(x: String): djinni.test2.Test2.PersistingState
     fun embeddedCppProtoToString(x: RecordWithEmbeddedCppProto): String
     fun stringToEmbeddedCppProto(x: String): RecordWithEmbeddedCppProto
-    fun protoListToStrings(x: List<Person>): List<String>
-    fun stringsToProtoList(x: List<String>): List<Person>
-    fun optionalProtoToString(x: Person?): String
-    fun stringToOptionalProto(x: String): Person?
-    fun stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<Person, Int>
+    fun protoListToStrings(x: List<djinni.test.Test.Person>): List<String>
+    fun stringsToProtoList(x: List<String>): List<djinni.test.Test.Person>
+    fun optionalProtoToString(x: djinni.test.Test.Person?): String
+    fun stringToOptionalProto(x: String): djinni.test.Test.Person?
+    fun stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<djinni.test.Test.Person, Int>
 }

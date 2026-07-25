@@ -31,13 +31,13 @@ interface ConstantsInterface {
         /** opt_i16_constant has documentation. */
         val OPT_I16_CONSTANT: Short? = 2
         val OPT_I32_CONSTANT: Int? = 3
-        val OPT_I64_CONSTANT: Long? = 4
+        val OPT_I64_CONSTANT: Long? = 4L
         /**
          * opt_f32_constant has long documentation.
          * (Second line of multi-line documentation.
          *   Indented third line of multi-line documentation.)
          */
-        val OPT_F32_CONSTANT: Float? = 5.0
+        val OPT_F32_CONSTANT: Float? = 5.0f
         val OPT_F64_CONSTANT: Double? = 5.0
         const val STRING_CONSTANT: String = "string-constant"
         val OPT_STRING_CONSTANT: String? = "string-constant"

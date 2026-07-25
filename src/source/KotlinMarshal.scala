@@ -73,8 +73,10 @@ class KotlinMarshal(spec: Spec) extends Marshal(spec) {
     ret.fold("Unit")(t => kotlinType(t.resolved, None, concrete = false, forceNonNull = true))
 
   // Kotlin needs very few imports: List/Set/Map/ArrayList/HashSet/HashMap are all in kotlin.collections
-  // (typealiased to java.util.*) and auto-imported; same-package generated types need no import; date is
-  // referenced fully-qualified. Cross-package extern imports are a follow-up (not exercised by the PoC).
+  // (typealiased to java.util.*) and auto-imported; same-package generated types need no import. Every
+  // foreign type -- date/duration externs (e.g. java.util.Date), protobuf messages (djinni.test.Test.Person),
+  // and support-lib types (com.snapchat.djinni.Outcome) -- is referenced by its fully-qualified name inline
+  // by kotlinType, so no import collection is needed here.
   def references(m: Meta): Seq[SymbolReference] = List()
 
   // ---- Type mapping ----------------------------------------------------------------------------
@@ -106,7 +108,12 @@ class KotlinMarshal(spec: Spec) extends Marshal(spec) {
       case e: MExtern =>
         if (isEnumFlags(tm)) "java.util.EnumSet<" + e.java.typename + ">"
         else e.java.typename + (if (e.java.generic) args(tm) else "")
-      case p: MProtobuf => p.name
+      // Protobuf messages live in a foreign, non-generated package (the yaml `java.class`, e.g.
+      // `djinni.test.Test`). Reference them by their fully-qualified Java name -- `djinni.test.Test.Person`
+      // -- so the nested protoc class resolves without an import, mirroring JavaMarshal's derivation
+      // (which instead emits `import <java.class>.<message>`). The Kotlin backend already references its
+      // other foreign types (java.util.Date, java.time.Duration, com.snapchat.djinni.Outcome) by FQN.
+      case p: MProtobuf => withPackage(Some(p.body.java.pkg), p.name)
     }
   }
 

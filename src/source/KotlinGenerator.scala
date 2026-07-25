@@ -89,10 +89,12 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
   }
 
   // ==============================================================================================
-  // Record -> data class (pure API). Fields use the CONCRETE collection flavor (ArrayList/HashSet/
-  // HashMap) and boxed optionals (T?), so the primary constructor descriptor and each backing-field
-  // name+descriptor are byte-for-byte identical to today's generated Java record -- which is exactly
-  // what the JNI record helper looks up (jconstructor + field_<name>). Verified with javap.
+  // Record -> data class (pure API). Fields use the idiomatic read-only collection flavor
+  // (List/Set/Map, via KotlinMarshal.fieldType(concrete=false)) and boxed optionals (T?). This is
+  // the team's idiomatic-surface decision: collections are read-only interfaces everywhere and only
+  // arrays stay mutable. The JNI record marshalling then binds the collection *interface* descriptors
+  // (Ljava/util/List; etc.) rather than concrete java.util.* -- a deferred JNI-side change tracked in
+  // IMPLEMENTATION-NOTES, not a surface blocker.
   // ==============================================================================================
   override def generateRecord(origin: String, ident: Ident, doc: Doc, params: Seq[TypeParam], r: Record) {
     // Mirror JavaGenerator's extended-record naming so the class name matches (ABI).
@@ -123,11 +125,7 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
         }
         if (r.consts.nonEmpty || r.derivingTypes.contains(DerivingType.Ord)) {
           w.w(s")$impl").braced {
-            if (r.derivingTypes.contains(DerivingType.Ord)) {
-              // NOTE: deriving(ord) -> Comparable is a best-effort stub for the PoC; a full port of
-              // JavaGenerator's field-by-field compareTo is a follow-up.
-              w.wl("// TODO(kotlin-poc): port field-by-field compareTo from JavaGenerator for deriving(ord).")
-            }
+            if (r.derivingTypes.contains(DerivingType.Ord)) generateCompareTo(w, self + tpl, r)
             generateRecordConsts(w, self, r.consts)
           }
         } else {
@@ -135,6 +133,26 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
         }
       }
     })
+  }
+
+  // deriving(ord) -> Comparable<Self>.compareTo. Mirrors JavaGenerator's field-by-field ordering:
+  // compare each field in declaration order, returning at the first non-equal field. Every field type
+  // that reaches here is Comparable in Kotlin -- primitives (Byte/Short/Int/Long/Float/Double), String,
+  // enums, java.util.Date / java.time.Duration externs, and nested ord records (whose generated
+  // compareTo we recurse into) -- so a uniform `.compareTo` gives the natural order Java produces.
+  private def generateCompareTo(w: IndentWriter, selfWithTpl: String, r: Record) {
+    w.wl
+    w.w(s"override fun compareTo(other: $selfWithTpl): Int").braced {
+      w.wl("var tempResult: Int")
+      for (f <- r.fields) {
+        val name = idJava.field(f.ident)
+        w.wl(s"tempResult = this.$name.compareTo(other.$name)")
+        w.w("if (tempResult != 0)").braced {
+          w.wl("return tempResult")
+        }
+      }
+      w.wl("return 0")
+    }
   }
 
   private def generateRecordConsts(w: IndentWriter, self: String, consts: Seq[Const]) {
@@ -426,9 +444,11 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
   }
 
   private def writeKotlinConstValue(w: IndentWriter, ty: TypeRef, v: Any): Unit = v match {
-    case l: Long if marshal.fieldType(ty).equalsIgnoreCase("long") => w.w(l.toString + "L")
+    // Strip a trailing `?` so an OPTIONAL i64/f32 constant (field type "Long?"/"Float?") still gets the
+    // L/f suffix -- without it the literal is typed Double/Int and fails against the Long?/Float? slot.
+    case l: Long if marshal.fieldType(ty).stripSuffix("?").equalsIgnoreCase("long") => w.w(l.toString + "L")
     case l: Long => w.w(l.toString)
-    case d: Double if marshal.fieldType(ty).equalsIgnoreCase("float") => w.w(d.toString + "f")
+    case d: Double if marshal.fieldType(ty).stripSuffix("?").equalsIgnoreCase("float") => w.w(d.toString + "f")
     case d: Double => w.w(d.toString)
     case b: Boolean => w.w(if (b) "true" else "false")
     case s: String => w.w(s)

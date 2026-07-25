@@ -8,28 +8,28 @@ package com.dropbox.djinni.test
 // idempotent init + stateless delegator, so a first-call race is harmless.
 private val instance: ProtoTestsStatics by lazy(LazyThreadSafetyMode.NONE) { CppProtoTestsStatics() }
 
-fun ProtoTests.Companion.protoToStrings(x: AddressBook): List<String> = instance.protoToStrings(x)
+fun ProtoTests.Companion.protoToStrings(x: djinni.test.Test.AddressBook): List<String> = instance.protoToStrings(x)
 
-fun ProtoTests.Companion.stringsToProto(x: List<String>): AddressBook = instance.stringsToProto(x)
+fun ProtoTests.Companion.stringsToProto(x: List<String>): djinni.test.Test.AddressBook = instance.stringsToProto(x)
 
 fun ProtoTests.Companion.embeddedProtoToString(x: RecordWithEmbeddedProto): String = instance.embeddedProtoToString(x)
 
 fun ProtoTests.Companion.stringToEmbeddedProto(x: String): RecordWithEmbeddedProto = instance.stringToEmbeddedProto(x)
 
-fun ProtoTests.Companion.cppProtoToString(x: PersistingState): String = instance.cppProtoToString(x)
+fun ProtoTests.Companion.cppProtoToString(x: djinni.test2.Test2.PersistingState): String = instance.cppProtoToString(x)
 
-fun ProtoTests.Companion.stringToCppProto(x: String): PersistingState = instance.stringToCppProto(x)
+fun ProtoTests.Companion.stringToCppProto(x: String): djinni.test2.Test2.PersistingState = instance.stringToCppProto(x)
 
 fun ProtoTests.Companion.embeddedCppProtoToString(x: RecordWithEmbeddedCppProto): String = instance.embeddedCppProtoToString(x)
 
 fun ProtoTests.Companion.stringToEmbeddedCppProto(x: String): RecordWithEmbeddedCppProto = instance.stringToEmbeddedCppProto(x)
 
-fun ProtoTests.Companion.protoListToStrings(x: List<Person>): List<String> = instance.protoListToStrings(x)
+fun ProtoTests.Companion.protoListToStrings(x: List<djinni.test.Test.Person>): List<String> = instance.protoListToStrings(x)
 
-fun ProtoTests.Companion.stringsToProtoList(x: List<String>): List<Person> = instance.stringsToProtoList(x)
+fun ProtoTests.Companion.stringsToProtoList(x: List<String>): List<djinni.test.Test.Person> = instance.stringsToProtoList(x)
 
-fun ProtoTests.Companion.optionalProtoToString(x: Person?): String = instance.optionalProtoToString(x)
+fun ProtoTests.Companion.optionalProtoToString(x: djinni.test.Test.Person?): String = instance.optionalProtoToString(x)
 
-fun ProtoTests.Companion.stringToOptionalProto(x: String): Person? = instance.stringToOptionalProto(x)
+fun ProtoTests.Companion.stringToOptionalProto(x: String): djinni.test.Test.Person? = instance.stringToOptionalProto(x)
 
-fun ProtoTests.Companion.stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<Person, Int> = instance.stringToProtoOutcome(x)
+fun ProtoTests.Companion.stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<djinni.test.Test.Person, Int> = instance.stringToProtoOutcome(x)
