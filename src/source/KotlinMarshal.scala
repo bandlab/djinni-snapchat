@@ -37,8 +37,13 @@ import djinni.meta._
 //     field id with the concrete java.util.* type descriptor. See KotlinGenerator / IMPLEMENTATION-NOTES.
 class KotlinMarshal(spec: Spec) extends Marshal(spec) {
 
-  // Mirrors JavaMarshal's policy: without --cpp-nn-type an interface reference is nullable
+  // Mirrors JavaMarshal's policy: without --cpp-nn-type an interface *reference* is nullable
   // (Java @Nullable); with it, non-null. Records/enums are always non-null; optional<T> is nullable.
+  // Exception: an interface as a *collection element* (list/set/map value) is emitted non-null even
+  // when interfaceNullable -- the Java backend can't annotate generic type args, so Kotlin consumers
+  // saw a platform `T!` element (no null-check) there; matching that avoids gratuitous filterNotNull()
+  // at every call site. This is a Kotlin-surface annotation only (marshalling is unchanged); a null
+  // shared_ptr sitting inside a collection is the same latent risk the Java platform type already had.
   private val interfaceNullable: Boolean = spec.cppNnType.isEmpty
 
   // ---- Marshal API -----------------------------------------------------------------------------
@@ -81,12 +86,14 @@ class KotlinMarshal(spec: Spec) extends Marshal(spec) {
 
   // ---- Type mapping ----------------------------------------------------------------------------
 
-  private def kotlinType(tm: MExpr, pkg: Option[String], concrete: Boolean, forceNonNull: Boolean): String =
-    bareType(tm, pkg, concrete) + nullSuffix(tm, forceNonNull)
+  private def kotlinType(tm: MExpr, pkg: Option[String], concrete: Boolean, forceNonNull: Boolean, collectionElem: Boolean = false): String =
+    bareType(tm, pkg, concrete) + nullSuffix(tm, forceNonNull, collectionElem)
 
   private def bareType(tm: MExpr, pkg: Option[String], concrete: Boolean): String = {
+    // Generic type arguments are collection elements: interface elements are emitted non-null (see
+    // interfaceNullable). optional<T> args keep their `?` via nullSuffix's MOptional case.
     def args(x: MExpr): String =
-      if (x.args.isEmpty) "" else x.args.map(a => kotlinType(a, pkg, concrete, forceNonNull = false)).mkString("<", ", ", ">")
+      if (x.args.isEmpty) "" else x.args.map(a => kotlinType(a, pkg, concrete, forceNonNull = false, collectionElem = true)).mkString("<", ", ", ">")
     tm.base match {
       case MOptional =>
         // In Kotlin optional<T> is just the inner type with a `?` suffix (added by nullSuffix).
@@ -118,11 +125,11 @@ class KotlinMarshal(spec: Spec) extends Marshal(spec) {
   }
 
   // Nullability per the mirrored Java policy, encoded in the Kotlin type itself.
-  private def nullSuffix(tm: MExpr, forceNonNull: Boolean): String = {
+  private def nullSuffix(tm: MExpr, forceNonNull: Boolean, collectionElem: Boolean): String = {
     if (forceNonNull) return ""
     tm.base match {
       case MOptional => "?"
-      case m if isInterfaceMeta(m) => if (interfaceNullable) "?" else ""
+      case m if isInterfaceMeta(m) => if (interfaceNullable && !collectionElem) "?" else ""
       case _ => ""
     }
   }
