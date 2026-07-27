@@ -262,11 +262,24 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
   // members of the impl, reachable only via a Cpp<Name>Statics instance -- so constructing that
   // instance is the single init chokepoint.
 
-  // ": T" for the statics service signature: factories (return this-interface) are non-null; other
-  // statics keep the mirrored policy type; void -> "".
-  private def staticReturnType(m: Interface.Method): String =
+  // A `create()` factory returns a freshly-constructed instance of its own interface, so it is
+  // non-null. STRICTLY only that: static, named exactly `create`, returning the declaring (self)
+  // type. Every other static -- accessors like `getVisualEq()`, openers like `open()`, or factories
+  // returning a *different* interface (e.g. `getEffectMetadataManager()`) -- can legitimately be
+  // null, so they keep the mirrored (nullable) policy.
+  private def isSelfCreateFactory(m: Interface.Method, ident: Ident): Boolean =
+    m.static && m.ident.name == "create" && m.ret.exists { t =>
+      t.resolved.base match {
+        case d: MDef => d.defType == DInterface && d.name == ident.name
+        case _ => false
+      }
+    }
+
+  // ": T" for the statics service signature: a self `create()` is non-null; other statics keep the
+  // mirrored policy type; void -> "".
+  private def staticReturnType(m: Interface.Method, ident: Ident): String =
     if (m.ret.isEmpty) ""
-    else if (m.ret.exists(t => isInterface(t.resolved))) ": " + marshal.returnTypeNonNull(m.ret)
+    else if (isSelfCreateFactory(m, ident)) ": " + marshal.returnTypeNonNull(m.ret)
     else retSuffix(m.ret)
 
   private def generateStaticsApi(origin: String, ident: Ident, doc: Doc, typeParams: Seq[TypeParam], i: Interface, statics: Seq[Interface.Method]) {
@@ -279,7 +292,7 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
         for (m <- statics) {
           writeMethodDoc(w, m, idJava.local)
           val params = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
-          w.wl(s"fun ${idJava.method(m.ident)}($params)${staticReturnType(m)}")
+          w.wl(s"fun ${idJava.method(m.ident)}($params)${staticReturnType(m, ident)}")
         }
       }
     })
@@ -311,7 +324,7 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
     val rawName = name + "_native"
     val params = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
     val argList = m.params.map(p => idJava.local(p.ident)).mkString(", ")
-    val nonNull = m.ret.exists(t => isInterface(t.resolved))
+    val nonNull = isSelfCreateFactory(m, ident)
 
     w.wl
     writeMethodDoc(w, m, idJava.local)
@@ -348,7 +361,7 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
         val params = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
         val argList = m.params.map(p => idJava.local(p.ident)).mkString(", ")
         w.wl
-        w.wl(s"fun $self.Companion.$name($params)${staticReturnType(m)} = instance.$name($argList)")
+        w.wl(s"fun $self.Companion.$name($params)${staticReturnType(m, ident)} = instance.$name($argList)")
       }
     })
   }
