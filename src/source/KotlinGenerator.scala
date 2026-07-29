@@ -168,15 +168,20 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
   // ==============================================================================================
   override def generateInterface(origin: String, ident: Ident, doc: Doc, typeParams: Seq[TypeParam], i: Interface) {
     val statics = i.methods.filter(m => m.static && m.lang.java)
-    generateInterfaceApi(origin, ident, doc, typeParams, i)
-    // Statics become an INJECTABLE service (interface + impl) rather than language statics: hides the
-    // native surface, makes them mockable, and gives one init chokepoint (the impl's construction).
-    if (statics.nonEmpty) generateStaticsApi(origin, ident, doc, typeParams, i, statics)
+    val createOnly = createOnlyFactory(ident, i)
+    // A util (static-only) type has no instance surface: skip the (empty) instance interface -- its
+    // statics service takes the plain <Name> instead (generateStaticsApi below).
+    if (!isUtilInterface(ident, i)) generateInterfaceApi(origin, ident, doc, typeParams, i)
+    // A "create-only" type has NO public <Name>Statics -- its create() is reached ONLY via the Companion
+    // hatch (legacy) and the suspend AudioCoreProviders. Types with REAL statics (mixed create+others, or
+    // non-create statics) keep the injectable service (<Name>Statics sidecar, or plain <Name> for util),
+    // which the provider also exposes.
+    if (statics.nonEmpty && createOnly.isEmpty) generateStaticsApi(origin, ident, doc, typeParams, i, statics)
     if (i.ext.cpp) {
       generateInterfaceCppProxy(origin, ident, doc, typeParams, i)
       if (statics.nonEmpty) {
-        generateStaticsImpl(origin, ident, doc, typeParams, i, statics)
-        generateStaticsCompatExtensions(origin, ident, doc, typeParams, i, statics)
+        generateStaticsImpl(origin, ident, doc, typeParams, i, statics, createOnly)
+        generateStaticsCompatExtensions(origin, ident, doc, typeParams, i, statics, createOnly)
       }
     }
   }
@@ -240,6 +245,18 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
           w.wl(s"fun ${idJava.method(m.ident)}($params)${retSuffix(m.ret)}")
         }
 
+        // create-only interface whose create() takes params -> expose a raw, framework-agnostic nested
+        // Factory (contract only, no DI annotations). The DI graph (engine-impl) satisfies it by
+        // delegating to the cached create(...); it is also generally useful (impl code, tests). A
+        // no-arg create-only needs no factory -- it is a direct graph accessor.
+        createOnlyFactory(ident, i).filter(_.params.nonEmpty).foreach { m =>
+          val fParams = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
+          w.wl
+          w.w("interface Factory").braced {
+            w.wl(s"fun ${idJava.method(m.ident)}($fParams): ${marshal.returnTypeNonNull(m.ret)}")
+          }
+        }
+
         // Constants stay on the API interface. Also emit an (otherwise empty) companion when the
         // interface has statics -- it's the anchor the @Deprecated source-compat extensions attach to,
         // keeping the old `<Name>.<static>(...)` call syntax compiling.
@@ -275,6 +292,41 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
       }
     }
 
+  // A "create-only" interface has EXACTLY one static and it is the strict self create() factory.
+  // Such types get idiomatic DI-first construction (a graph accessor for no-arg create(), or a raw
+  // nested Factory for arg-taking create()) instead of the injectable <Name>Statics service. Mixed
+  // types (create() + other statics) keep the full Statics service untouched.
+  private def createOnlyFactory(ident: Ident, i: Interface): Option[Interface.Method] =
+    i.methods.filter(m => m.static && m.lang.java) match {
+      case Seq(m) if isSelfCreateFactory(m, ident) => Some(m)
+      case _ => None
+    }
+
+  // A "utility" interface has static functions but NO instance (member) functions -- e.g. MusicUtils.
+  // Splitting <Name> + <Name>Statics only makes sense when a type has BOTH; a static-only type has no
+  // instance surface worth generating, so its injectable service takes the PLAIN <Name> (MusicUtils),
+  // the (otherwise empty) instance interface is suppressed, and its CppProxy loses the interface
+  // supertype (it becomes a bare native-handle holder the JNI still binds to). create-only types are
+  // handled separately and excluded here.
+  private def isUtilInterface(ident: Ident, i: Interface): Boolean =
+    createOnlyFactory(ident, i).isEmpty &&
+      i.methods.exists(m => m.static && m.lang.java) &&
+      !i.methods.exists(m => !m.static && m.lang.java)
+
+  // Public name of the injectable statics service: plain <Name> for a util (static-only) interface,
+  // else the <Name>Statics sidecar beside the instance <Name>.
+  private def staticsServiceName(ident: Ident, i: Interface): String = {
+    val self = marshal.typename(ident, i)
+    if (isUtilInterface(ident, i)) self else self + "Statics"
+  }
+
+  // Provider accessor for a statics service: `musicUtils()` for a util, `audioEngineCommonStatics()`
+  // for a sidecar.
+  private def staticsAccessorName(ident: Ident, i: Interface): String = {
+    val self = marshal.typename(ident, i)
+    if (isUtilInterface(ident, i)) lowerFirst(self) else lowerFirst(self) + "Statics"
+  }
+
   // ": T" for the statics service signature: a self `create()` is non-null; other statics keep the
   // mirrored policy type; void -> "".
   private def staticReturnType(m: Interface.Method, ident: Ident): String =
@@ -284,34 +336,49 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
 
   private def generateStaticsApi(origin: String, ident: Ident, doc: Doc, typeParams: Seq[TypeParam], i: Interface, statics: Seq[Interface.Method]) {
     val self = marshal.typename(ident, i)
-    writeKotlinFile(apiFolder, self + "Statics.kt", origin, Nil, w => {
-      w.wl(s"// Injectable statics service for $self (replaces language-level statics).")
+    val util = isUtilInterface(ident, i)
+    val svc = staticsServiceName(ident, i) // plain <Name> for util, else <Name>Statics sidecar
+    writeKotlinFile(apiFolder, svc + ".kt", origin, Nil, w => {
+      if (util) {
+        // Static-only type: this service IS the public <Name>, so it carries the interface doc + the
+        // Companion (consts + source-compat hatch anchor) the suppressed instance interface would have.
+        writeDoc(w, doc)
+        w.wl(s"// Static-only utility surface, exposed as an injectable service (no language-level statics).")
+      } else {
+        w.wl(s"// Injectable statics service for $self (replaces language-level statics).")
+      }
       w.wl(s"// Depend on THIS at call sites so the native surface stays hidden and mockable; a real")
       w.wl(s"// instance comes from Cpp${self}Statics (impl), whose construction is the init gate.")
-      w.w(s"interface ${self}Statics").braced {
+      w.w(s"interface $svc").braced {
         for (m <- statics) {
           writeMethodDoc(w, m, idJava.local)
           val params = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
           w.wl(s"fun ${idJava.method(m.ident)}($params)${staticReturnType(m, ident)}")
         }
+        if (util) {
+          w.wl
+          w.w("companion object").braced {
+            writeKotlinConsts(w, i.consts)
+          }
+        }
       }
     })
   }
 
-  private def generateStaticsImpl(origin: String, ident: Ident, doc: Doc, typeParams: Seq[TypeParam], i: Interface, statics: Seq[Interface.Method]) {
+  private def generateStaticsImpl(origin: String, ident: Ident, doc: Doc, typeParams: Seq[TypeParam], i: Interface, statics: Seq[Interface.Method], createOnly: Option[Interface.Method]) {
     val self = marshal.typename(ident, i)
     val impl = "Cpp" + self + "Statics"
+    // create-only: NO public <Name>Statics interface -- this internal class is just the native-create
+    // factory (the JNI binds create_native here), used only by the Companion hatch + AudioCoreProviders.
+    // real-statics: implements the public <Name>Statics service.
+    val superType = if (createOnly.isDefined) "" else s" : ${staticsServiceName(ident, i)}"
     writeKotlinFile(implFolder, impl + ".kt", origin, Nil, w => {
-      w.wl(s"// Impl of ${self}Statics. Constructing this is the SINGLE place the native surface becomes")
-      w.wl(s"// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook")
-      w.wl(s"// in the init block below. Kept as an injection seam -- the generator imposes no policy.")
-      w.w(s"class $impl : ${self}Statics").braced {
-        w.w("init").braced {
-          w.wl("// INIT SEAM: ensure the native library is loaded/initialized here (app-injected),")
-          w.wl("// e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.")
-        }
+      w.wl(s"// Internal singleton for the $self static surface -- never visible to consumers. Reached only")
+      w.wl(s"// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native")
+      w.wl(s"// statics; readiness gating lives at those seams (AudioCoreInit), not here.")
+      w.w(s"internal object $impl$superType").braced {
         for (m <- statics) {
-          writeStaticsMember(w, ident, m)
+          writeStaticsMember(w, ident, m, createOnly.isEmpty)
         }
       }
     })
@@ -319,27 +386,29 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
 
   // One statics member: a public `override` wrapper (non-null + throw for factories) over a private
   // `external` INSTANCE native (instance, not @JvmStatic, so the native binds as a plain method).
-  private def writeStaticsMember(w: IndentWriter, ident: Ident, m: Interface.Method) {
+  private def writeStaticsMember(w: IndentWriter, ident: Ident, m: Interface.Method, isOverride: Boolean) {
     val name = idJava.method(m.ident)
     val rawName = name + "_native"
     val params = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
     val argList = m.params.map(p => idJava.local(p.ident)).mkString(", ")
     val nonNull = isSelfCreateFactory(m, ident)
+    // create-only: no <Name>Statics interface to override; real-statics: `override`.
+    val ov = if (isOverride) "override " else ""
 
     w.wl
     writeMethodDoc(w, m, idJava.local)
     if (m.ret.isEmpty) {
-      w.w(s"override fun $name($params)").braced {
+      w.w(s"${ov}fun $name($params)").braced {
         w.wl(s"$rawName($argList)")
       }
     } else if (nonNull) {
       val t = marshal.returnTypeNonNull(m.ret)
-      w.wl(s"override fun $name($params): $t =")
+      w.wl(s"${ov}fun $name($params): $t =")
       w.nested {
         w.wl(s"$rawName($argList) ?: throw IllegalStateException(${q(ident.name + "." + name + " returned null")})")
       }
     } else {
-      w.wl(s"override fun $name($params)${retSuffix(m.ret)} = $rawName($argList)")
+      w.wl(s"${ov}fun $name($params)${retSuffix(m.ret)} = $rawName($argList)")
     }
     w.wl(s"private external fun $rawName($params)${retSuffix(m.ret)}")
   }
@@ -348,20 +417,28 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
   // against the new API (Kotlin; needs the import). Plain -- intentionally NOT @Deprecated: the team
   // marks these via their own lint rule + baseline, so codegen imposes no deprecation policy. Lives in
   // impl (delegates to the Cpp<Name>Statics facade); same package as the generated types.
-  private def generateStaticsCompatExtensions(origin: String, ident: Ident, doc: Doc, typeParams: Seq[TypeParam], i: Interface, statics: Seq[Interface.Method]) {
+  // lower-cases the first char: "Arpeggiator" -> "arpeggiator". Used for the shared statics-instance
+  // name and the AudioCoreProviders accessor names.
+  private def lowerFirst(s: String): String = if (s.isEmpty) s else s.head.toLower.toString + s.tail
+  private def generateStaticsCompatExtensions(origin: String, ident: Ident, doc: Doc, typeParams: Seq[TypeParam], i: Interface, statics: Seq[Interface.Method], createOnly: Option[Interface.Method]) {
     val self = marshal.typename(ident, i)
     val impl = "Cpp" + self + "Statics"
-    writeKotlinFile(implFolder, self + "StaticsCompat.kt", origin, Nil, w => {
-      w.wl(s"// Source-compat extensions: old `$self.<static>(...)` call sites keep compiling (Kotlin; needs")
-      w.wl(s"// the import). Backed by one lazy(NONE) $impl -- no synchronized check on hot static calls;")
-      w.wl(s"// idempotent init + stateless delegator, so a first-call race is harmless.")
-      w.wl(s"private val instance: ${self}Statics by lazy(LazyThreadSafetyMode.NONE) { $impl() }")
+    writeKotlinFile(implFolder, self + "StaticsCompat.kt", origin, List("kotlinx.coroutines.runBlocking"), w => {
+      w.wl(s"// Source-compat hatch: old `$self.<static>(...)` call sites keep compiling -- now init-SAFE.")
+      w.wl(s"// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init")
+      w.wl(s"// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate")
+      w.wl(s"// to the suspend AudioCoreProviders). Delegates to the internal $impl singleton (also reused")
+      w.wl(s"// by AudioCoreProvidersImpl).")
       for (m <- statics) {
         val name = idJava.method(m.ident)
         val params = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
         val argList = m.params.map(p => idJava.local(p.ident)).mkString(", ")
         w.wl
-        w.wl(s"fun $self.Companion.$name($params)${staticReturnType(m, ident)} = instance.$name($argList)")
+        w.w(s"fun $self.Companion.$name($params)${staticReturnType(m, ident)}").braced {
+          w.wl("runBlocking { AudioCoreInit.awaitReady() }")
+          val ret = if (m.ret.isEmpty) "" else "return "
+          w.wl(s"$ret$impl.$name($argList)")
+        }
       }
     })
   }
@@ -374,11 +451,15 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
       "com.snapchat.djinni.NativeObjectManager",
       "java.util.concurrent.atomic.AtomicBoolean")
 
+    // A util (static-only) type has no instance interface, so its proxy is a bare native-handle holder
+    // (no supertype); the JNI still binds its (long) constructor + nativeDestroy(long). Otherwise the
+    // proxy implements the instance interface <Name>.
+    val superType = if (isUtilInterface(ident, i)) "" else s" : $self$tpl"
     writeKotlinFile(implFolder, proxy + ".kt", origin, imports, w => {
       w.wl("// CppProxy for " + self + " -- wraps a native C++ implementation. Instance methods only;")
       w.wl("// the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members")
       w.wl("// the JNI layer / support-lib bind to. Static factories live on Cpp" + self + "Statics.")
-      w.w(s"class $proxy$tpl private constructor(private val nativeRef: Long) : $self$tpl").braced {
+      w.w(s"internal class $proxy$tpl private constructor(private val nativeRef: Long)$superType").braced {
         w.wl("private val destroyed = AtomicBoolean(false)")
         w.wl
         w.w("init").braced {
@@ -482,5 +563,120 @@ class KotlinGenerator(spec: Spec) extends Generator(spec) {
         w.wl
       }
       w.w(")")
+  }
+
+  // ============================================================================================
+  // Async DI surface (generated; NO DI framework on the engine side). Our provider surface is FLAT
+  // -- each provider is just `await readiness -> create()`, no cross-deps -- so we emit a plain
+  // interface + a plain object impl, indistinguishable to a downstream Metro graph that @Includes it.
+  // Providers are `suspend` so injection can await native-lib readiness (AudioCoreInit) without
+  // blocking; a downstream graph (with Metro suspend-providers) turns each accessor into an async
+  // binding. Emits three files:
+  //   engine-api : interface AudioCoreProviders { suspend fun <name>(): <T | T.Factory> }
+  //   engine-impl: object AudioCoreInit (CompletableDeferred readiness gate)
+  //   engine-impl: internal object AudioCoreProvidersImpl + public fun audioCoreProviders()
+  // ============================================================================================
+  override def generateModule(decls: Seq[InternTypeDecl]): Unit = {
+    val interfaces = decls.flatMap { td =>
+      td.body match { case i: Interface if i.ext.cpp => Some((td.ident, i)); case _ => None }
+    }
+    // ① / ② create-only -> suspend fun x() / xFactory(); ③ real statics -> suspend fun xStatics(): XStatics.
+    val createOnly = interfaces.flatMap { case (ident, i) => createOnlyFactory(ident, i).map(m => (ident, i, m)) }
+    val realStatics = interfaces.filter { case (ident, i) =>
+      createOnlyFactory(ident, i).isEmpty && i.methods.exists(m => m.static && m.lang.java)
+    }
+    if (createOnly.isEmpty && realStatics.isEmpty) return
+    val origin = decls.head.origin
+
+    // accessor name: no-arg create -> `arpeggiator`; arg-taking create -> `transportFactory`.
+    def accessor(self: String, m: Interface.Method): String =
+      if (m.params.isEmpty) lowerFirst(self) else lowerFirst(self) + "Factory"
+    def providerType(self: String, m: Interface.Method): String =
+      if (m.params.isEmpty) self else s"$self.Factory"
+
+    // --- api: the plain suspend-provider interface (contract). `suspend` needs only stdlib. --------
+    writeKotlinFile(apiFolder, "AudioCoreProviders.kt", origin, Nil, w => {
+      w.wl("// Async DI surface for the audio engine (generated). Each provider is `suspend` so injection")
+      w.wl("// can await native readiness (AudioCoreInit) without blocking. Plain Kotlin -- NO DI framework")
+      w.wl("// here; a downstream graph @Includes this and (with Metro suspend-providers) turns each")
+      w.wl("// accessor into an async binding. Retrieve the impl via AudioCoreProviders.resolve().")
+      w.w("interface AudioCoreProviders").braced {
+        for ((ident, i, m) <- createOnly) {
+          val self = marshal.typename(ident, i)
+          w.wl(s"suspend fun ${accessor(self, m)}(): ${providerType(self, m)}")
+        }
+        for ((ident, i) <- realStatics) {
+          w.wl(s"suspend fun ${staticsAccessorName(ident, i)}(): ${staticsServiceName(ident, i)}")
+        }
+        w.wl
+        w.wl("companion object")
+      }
+    })
+
+    // --- impl: the readiness gate. -----------------------------------------------------------------
+    writeKotlinFile(implFolder, "AudioCoreInit.kt", origin, List("kotlinx.coroutines.CompletableDeferred"), w => {
+      w.wl("// Readiness gate for the native audio-engine .so. The app calls markReady() once the")
+      w.wl("// library is loaded + initialized (or markFailed(cause) on failure); every generated")
+      w.wl("// provider / compat hatch awaits this before touching the native surface, so no native")
+      w.wl("// call can run before the engine is ready.")
+      w.w("object AudioCoreInit").braced {
+        w.wl("private val ready = CompletableDeferred<Unit>()")
+        w.wl
+        w.wl("// Non-suspend snapshot: true once initialized SUCCESSFULLY (completed & not failed).")
+        w.wl("val isReady: Boolean get() = ready.isCompleted && !ready.isCancelled")
+        w.wl
+        w.wl("// Suspends until the engine is ready; throws if initialization failed.")
+        w.wl("suspend fun awaitReady() = ready.await()")
+        w.wl
+        w.wl("// Signal the .so is loaded + initialized. Idempotent (a later call is a no-op).")
+        w.wl("fun markReady() { ready.complete(Unit) }")
+        w.wl
+        w.wl("// Signal initialization failed -- awaiters (and blocking hatches) throw `cause` instead")
+        w.wl("// of hanging forever.")
+        w.wl("fun markFailed(cause: Throwable) { ready.completeExceptionally(cause) }")
+      }
+    })
+
+    // --- impl: hidden object impl + the resolve() retrieval extension. -----------------------------
+    writeKotlinFile(implFolder, "AudioCoreProvidersImpl.kt", origin, Nil, w => {
+      w.wl("// Impl of AudioCoreProviders (hidden -- consumers only see the interface + resolve()).")
+      w.wl("// Each provider awaits AudioCoreInit, then delegates to the shared internal Cpp<name>Statics")
+      w.wl("// singleton (the same statics facade the compat hatch uses). No Cpp* type is ever exposed.")
+      w.w("internal object AudioCoreProvidersImpl : AudioCoreProviders").braced {
+        val skipFirst = SkipFirst()
+        for ((ident, i, m) <- createOnly) {
+          skipFirst { w.wl }
+          val self = marshal.typename(ident, i)
+          val impl = "Cpp" + self + "Statics"
+          if (m.params.isEmpty) {
+            w.w(s"override suspend fun ${accessor(self, m)}(): $self").braced {
+              w.wl("AudioCoreInit.awaitReady()")
+              w.wl(s"return $impl.create()")
+            }
+          } else {
+            val params = m.params.map(p => s"${idJava.local(p.ident)}: ${marshal.paramType(p.ty)}").mkString(", ")
+            val args = m.params.map(p => idJava.local(p.ident)).mkString(", ")
+            w.w(s"override suspend fun ${accessor(self, m)}(): $self.Factory").braced {
+              w.wl("AudioCoreInit.awaitReady()")
+              w.w(s"return object : $self.Factory").braced {
+                w.wl(s"override fun create($params): $self = $impl.create($args)")
+              }
+            }
+          }
+        }
+        for ((ident, i) <- realStatics) {
+          skipFirst { w.wl }
+          val self = marshal.typename(ident, i)
+          val impl = "Cpp" + self + "Statics"
+          w.w(s"override suspend fun ${staticsAccessorName(ident, i)}(): ${staticsServiceName(ident, i)}").braced {
+            w.wl("AudioCoreInit.awaitReady()")
+            w.wl(s"return $impl")
+          }
+        }
+      }
+      w.wl
+      w.wl("// Retrieval (cheap; no construction) -- hand the interface to a downstream DI graph.")
+      w.wl("fun AudioCoreProviders.Companion.resolve(): AudioCoreProviders = AudioCoreProvidersImpl")
+    })
   }
 }
