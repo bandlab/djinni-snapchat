@@ -12,8 +12,9 @@
 #   src/run-scalac -- --help
 #
 # Env (all have working defaults):
-#   JAVA_CANDIDATE   sdkman java candidate (default 8.0.502-zulu; Scala 2.11 needs JDK<=8)
-#   SCALA_CANDIDATE  sdkman scala candidate (default 2.11.12)
+#   JAVA_HOME            JDK to use (Scala 2.11 needs JDK<=8; the Gradle djinni task sets a foojay-
+#                        provisioned JDK 8 here). Falls back to `java` on PATH.
+#   SCALA_VERSION        Scala 2.x for the generator + its compiler jars (default 2.11.12)
 #   DJINNI_SCALAC_CACHE  where deps + compiled classes are cached (default src/.scalac-build)
 set -euo pipefail
 
@@ -24,41 +25,41 @@ SRC="$repo_dir/src/source"
 CACHE="${DJINNI_SCALAC_CACHE:-$base_dir/.scalac-build}"
 LIBS_DIR="$CACHE/libs"
 CLASSES_DIR="$CACHE/classes"
-JAVA_CANDIDATE="${JAVA_CANDIDATE:-8.0.502-zulu}"
-SCALA_CANDIDATE="${SCALA_CANDIDATE:-2.11.12}"
+SCALA_VERSION="${SCALA_VERSION:-2.11.12}"
 
 REBUILD=false
 if [[ "${1:-}" == "--rebuild" ]]; then REBUILD=true; shift; fi
 if [[ "${1:-}" == "--" ]]; then shift; fi
 
-# --- sdkman toolchain (Scala 2.11 needs JDK <= 8) --------------------------
-if ! command -v sdk >/dev/null 2>&1; then
-  export sdkman_auto_answer=true
-  set +u; source "$HOME/.sdkman/bin/sdkman-init.sh"; set -u
-fi
-[ -d "$HOME/.sdkman/candidates/java/$JAVA_CANDIDATE" ]  || sdk install java  "$JAVA_CANDIDATE"  < /dev/null
-[ -d "$HOME/.sdkman/candidates/scala/$SCALA_CANDIDATE" ] || sdk install scala "$SCALA_CANDIDATE" < /dev/null
-sdk use java  "$JAVA_CANDIDATE"  >/dev/null
-sdk use scala "$SCALA_CANDIDATE" >/dev/null
-SCALA_LIB="$HOME/.sdkman/candidates/scala/$SCALA_CANDIDATE/lib/scala-library.jar"
+# --- JVM (Scala 2.11 needs JDK <= 8) ---------------------------------------
+# Use the JDK handed in via $JAVA_HOME -- the Gradle djinni task provisions a JDK 8 toolchain (foojay)
+# and sets it; fall back to `java` on PATH for a direct invocation. The Scala compiler itself is a
+# Maven jar below, run on this JVM -- no sdkman, nothing installed imperatively.
+JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
 
-# --- dependency jars (same three as src/BUILD) -----------------------------
+# --- dependency + Scala jars from Maven (the compiler is a plain dependency, run on $JAVA) ---------
 mkdir -p "$LIBS_DIR"
 declare -A JARS=(
   ["scopt_2.11-3.2.0.jar"]="https://repo1.maven.org/maven2/com/github/scopt/scopt_2.11/3.2.0/scopt_2.11-3.2.0.jar"
   ["scala-parser-combinators_2.11-1.0.1.jar"]="https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.11/1.0.1/scala-parser-combinators_2.11-1.0.1.jar"
   ["snakeyaml-1.15.jar"]="https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.15/snakeyaml-1.15.jar"
+  ["scala-library-$SCALA_VERSION.jar"]="https://repo1.maven.org/maven2/org/scala-lang/scala-library/$SCALA_VERSION/scala-library-$SCALA_VERSION.jar"
+  ["scala-reflect-$SCALA_VERSION.jar"]="https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/$SCALA_VERSION/scala-reflect-$SCALA_VERSION.jar"
+  ["scala-compiler-$SCALA_VERSION.jar"]="https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/$SCALA_VERSION/scala-compiler-$SCALA_VERSION.jar"
 )
 for name in "${!JARS[@]}"; do
   [ -f "$LIBS_DIR/$name" ] || curl -fsSL -o "$LIBS_DIR/$name" "${JARS[$name]}"
 done
+SCALA_LIB="$LIBS_DIR/scala-library-$SCALA_VERSION.jar"
 DEP_CP="$LIBS_DIR/scopt_2.11-3.2.0.jar:$LIBS_DIR/scala-parser-combinators_2.11-1.0.1.jar:$LIBS_DIR/snakeyaml-1.15.jar:$SCALA_LIB"
+COMPILER_CP="$LIBS_DIR/scala-compiler-$SCALA_VERSION.jar:$LIBS_DIR/scala-reflect-$SCALA_VERSION.jar:$SCALA_LIB"
 
 # --- compile (skip if built, unless --rebuild) -----------------------------
+# scalac == `java -cp <scala-compiler> scala.tools.nsc.Main`, so no `scala`/`scalac` binary is needed.
 if [ "$REBUILD" = true ] || [ ! -f "$CLASSES_DIR/djinni/Main.class" ]; then
   rm -rf "$CLASSES_DIR"; mkdir -p "$CLASSES_DIR"
   # shellcheck disable=SC2046
-  scalac -cp "$DEP_CP" -d "$CLASSES_DIR" $(find "$SRC" -name '*.scala')
+  "$JAVA" -cp "$COMPILER_CP" scala.tools.nsc.Main -cp "$DEP_CP" -d "$CLASSES_DIR" $(find "$SRC" -name '*.scala')
 fi
 
-exec java -cp "$CLASSES_DIR:$DEP_CP" djinni.Main "$@"
+exec "$JAVA" -cp "$CLASSES_DIR:$DEP_CP" djinni.Main "$@"
