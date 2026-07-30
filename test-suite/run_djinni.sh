@@ -52,7 +52,7 @@ elif [ $# -eq 1 ]; then
         echo "Unexpected arguemnt: \"$command\"." 1>&2
         exit 1
     fi
-    for dir in "$temp_out" "$cpp_out" "$jni_out" "$java_out"; do
+    for dir in "$temp_out" "$cpp_out" "$jni_out" "$java_out" "$objc_out" "$wasm_out" "$ts_out" "$kotlin_out"; do
         if [ -e "$dir" ]; then
             echo "Deleting \"$dir\"..."
             rm -r "$dir"
