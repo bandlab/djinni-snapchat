@@ -50,8 +50,16 @@ echo "== compiling extern stubs =="
   || { echo "FATAL: stub javac failed"; sed 's/^/  /' "$BUILD/stubs.log"; exit 2; }
 echo "  ok"
 
+# --- kotlinx.coroutines compile-only stub (the generated init-safe hatches use runBlocking + the
+#     AudioCoreInit CompletableDeferred gate). Compiled WITHOUT -Werror so the stub's own bodies
+#     don't gate the golden; the golden itself is still checked under -Werror against it.
+echo "== compiling kotlinx.coroutines stub =="
+"$KOTLINC" -d "$BUILD/coroutines-stub.jar" "$STUBS_SRC/kotlinx" > "$BUILD/coroutines.log" 2>&1 \
+  || { echo "FATAL: coroutines stub kotlinc failed"; sed 's/^/  /' "$BUILD/coroutines.log"; exit 2; }
+echo "  ok"
+
 # --- compile the golden under -Werror --------------------------------------
-CP="$BUILD/support:$BUILD/stubs"
+CP="$BUILD/support:$BUILD/stubs:$BUILD/coroutines-stub.jar"
 LOG="$BUILD/kotlinc.log"
 echo "== kotlinc -Werror (api + impl) =="
 "$KOTLINC" -Werror -cp "$CP" -d "$BUILD/golden.jar" "$GOLDEN/api" "$GOLDEN/impl" > "$LOG" 2>&1
