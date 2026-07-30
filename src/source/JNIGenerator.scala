@@ -30,7 +30,7 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
   // The JNI backend serves exactly one JVM surface. When Kotlin is the sole JVM target (no Java
   // output requested) it follows the Kotlin structure (top-level `Cpp<Name>` proxy + `Cpp<Name>Statics`);
   // otherwise it stays on the classic Java one (nested `<Name>$CppProxy` + statics on the interface).
-  private def jniForKotlin: Boolean = spec.kotlinOutFolder.isDefined && spec.javaOutFolder.isEmpty
+  private def jniForKotlin: Boolean = spec.javaOutFolder.isEmpty
 
   val jniMarshal = new JNIMarshal(spec)
   val cppMarshal = new CppMarshal(spec)

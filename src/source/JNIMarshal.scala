@@ -26,7 +26,7 @@ class JNIMarshal(spec: Spec) extends Marshal(spec) {
 
   // The JNI backend serves exactly one JVM surface. When Kotlin is the sole JVM target (no Java
   // output requested) it follows the Kotlin structure; otherwise it stays on the classic Java one.
-  private def jniForKotlin: Boolean = spec.kotlinOutFolder.isDefined && spec.javaOutFolder.isEmpty
+  private def jniForKotlin: Boolean = spec.javaOutFolder.isEmpty
 
   // For JNI typename() is always fully qualified and describes the mangled Java type to be used in field/method signatures
   override def typename(tm: MExpr): String = javaTypeSignature(tm)
