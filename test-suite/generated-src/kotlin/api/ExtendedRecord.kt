@@ -5,12 +5,12 @@ package com.dropbox.djinni.test
 
 /** Extended record */
 data class ExtendedRecord(
-    val foo: Boolean,
+    val mFoo: Boolean,
 ) {
 
     companion object {
         val EXTENDED_RECORD_CONST: ExtendedRecord = ExtendedRecord(
-            foo = true
+            mFoo = true
         )
     }
 }

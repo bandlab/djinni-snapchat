@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for ReverseClientInterface -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppReverseClientInterfaceStatics.
-class CppReverseClientInterface private constructor(private val nativeRef: Long) : ReverseClientInterface {
+internal class CppReverseClientInterface private constructor(private val nativeRef: Long) : ReverseClientInterface {
     private val destroyed = AtomicBoolean(false)
 
     init {

@@ -3,16 +3,11 @@
 
 package com.dropbox.djinni.test
 
-// Impl of CppExceptionStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppCppExceptionStatics : CppExceptionStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the CppException static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppCppExceptionStatics : CppExceptionStatics {
 
-    override fun get(): CppException =
-        get_native() ?: throw IllegalStateException("cpp_exception.get returned null")
+    override fun get(): CppException? = get_native()
     private external fun get_native(): CppException?
 }

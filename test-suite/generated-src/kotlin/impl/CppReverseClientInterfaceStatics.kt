@@ -3,16 +3,12 @@
 
 package com.dropbox.djinni.test
 
-// Impl of ReverseClientInterfaceStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppReverseClientInterfaceStatics : ReverseClientInterfaceStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the ReverseClientInterface static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppReverseClientInterfaceStatics {
 
-    override fun create(): ReverseClientInterface =
+    fun create(): ReverseClientInterface =
         create_native() ?: throw IllegalStateException("reverse_client_interface.create returned null")
     private external fun create_native(): ReverseClientInterface?
 }

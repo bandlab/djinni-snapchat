@@ -7,5 +7,5 @@ package com.dropbox.djinni.test
 // Depend on THIS at call sites so the native surface stays hidden and mockable; a real
 // instance comes from CppReturnTwoStatics (impl), whose construction is the init gate.
 interface ReturnTwoStatics {
-    fun getInstance(): ReturnTwo
+    fun getInstance(): ReturnTwo?
 }

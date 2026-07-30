@@ -4,13 +4,13 @@
 package com.dropbox.djinni.test
 
 data class RecordUsingExtendedRecord(
-    val er: ExtendedRecord,
+    val mEr: ExtendedRecord,
 ) {
 
     companion object {
         val CR: RecordUsingExtendedRecord = RecordUsingExtendedRecord(
-            er = ExtendedRecord(
-                foo = false
+            mEr = ExtendedRecord(
+                mFoo = false
             )
         )
     }

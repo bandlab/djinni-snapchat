@@ -3,7 +3,18 @@
 
 package com.dropbox.djinni.test
 
+// Static-only utility surface, exposed as an injectable service (no language-level statics).
+// Depend on THIS at call sites so the native surface stays hidden and mockable; a real
+// instance comes from CppTestOutcomeStatics (impl), whose construction is the init gate.
 interface TestOutcome {
+    fun getSuccessOutcome(): com.snapchat.djinni.Outcome<String, Int>
+    fun getErrorOutcome(): com.snapchat.djinni.Outcome<String, Int>
+    fun putSuccessOutcome(x: com.snapchat.djinni.Outcome<String, Int>): String
+    fun putErrorOutcome(x: com.snapchat.djinni.Outcome<String, Int>): Int
+    fun getNestedSuccessOutcome(): NestedOutcome
+    fun getNestedErrorOutcome(): NestedOutcome
+    fun putNestedSuccessOutcome(x: NestedOutcome): Int
+    fun putNestedErrorOutcome(x: NestedOutcome): String
 
     companion object {
     }

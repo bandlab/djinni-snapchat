@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for SampleInterface -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppSampleInterfaceStatics.
-class CppSampleInterface private constructor(private val nativeRef: Long) : SampleInterface {
+internal class CppSampleInterface private constructor(private val nativeRef: Long) : SampleInterface {
     private val destroyed = AtomicBoolean(false)
 
     init {

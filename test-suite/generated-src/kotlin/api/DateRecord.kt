@@ -4,12 +4,12 @@
 package com.dropbox.djinni.test
 
 data class DateRecord(
-    val createdAt: java.util.Date,
+    val mCreatedAt: java.util.Date,
 ) : Comparable<DateRecord> {
 
     override fun compareTo(other: DateRecord): Int {
         var tempResult: Int
-        tempResult = this.createdAt.compareTo(other.createdAt)
+        tempResult = this.mCreatedAt.compareTo(other.mCreatedAt)
         if (tempResult != 0) {
             return tempResult
         }

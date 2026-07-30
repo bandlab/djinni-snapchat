@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class MapDateRecord(
-    val datesById: Map<String, java.util.Date>,
+    val mDatesById: Map<String, java.util.Date>,
 )

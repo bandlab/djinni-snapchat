@@ -7,5 +7,5 @@ package com.dropbox.djinni.test
 // Depend on THIS at call sites so the native surface stays hidden and mockable; a real
 // instance comes from CppListenerCallerStatics (impl), whose construction is the init gate.
 interface ListenerCallerStatics {
-    fun init(firstL: FirstListener?, secondL: SecondListener?): ListenerCaller
+    fun init(firstL: FirstListener?, secondL: SecondListener?): ListenerCaller?
 }

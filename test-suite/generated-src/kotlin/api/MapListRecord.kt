@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class MapListRecord(
-    val mapList: List<Map<String, Long>>,
+    val mMapList: List<Map<String, Long>>,
 )

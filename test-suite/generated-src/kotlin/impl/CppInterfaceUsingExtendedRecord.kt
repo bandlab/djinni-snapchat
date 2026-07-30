@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for InterfaceUsingExtendedRecord -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppInterfaceUsingExtendedRecordStatics.
-class CppInterfaceUsingExtendedRecord private constructor(private val nativeRef: Long) : InterfaceUsingExtendedRecord {
+internal class CppInterfaceUsingExtendedRecord private constructor(private val nativeRef: Long) : InterfaceUsingExtendedRecord {
     private val destroyed = AtomicBoolean(false)
 
     init {

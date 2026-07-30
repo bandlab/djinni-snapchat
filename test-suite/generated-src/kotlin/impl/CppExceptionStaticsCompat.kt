@@ -3,9 +3,15 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `CppException.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppCppExceptionStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: CppExceptionStatics by lazy(LazyThreadSafetyMode.NONE) { CppCppExceptionStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun CppException.Companion.get(): CppException = instance.get()
+// Source-compat hatch: old `CppException.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppCppExceptionStatics singleton (also reused
+// by AudioCoreProvidersImpl).
+
+fun CppException.Companion.get(): CppException? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppCppExceptionStatics.get()
+}

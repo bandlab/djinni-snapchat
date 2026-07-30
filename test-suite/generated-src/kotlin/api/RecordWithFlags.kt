@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class RecordWithFlags(
-    val access: java.util.EnumSet<AccessFlags>,
+    val mAccess: java.util.EnumSet<AccessFlags>,
 )

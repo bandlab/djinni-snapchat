@@ -8,8 +8,8 @@ interface InterfaceUsingExtendedRecord {
 
     companion object {
         val CR: RecordUsingExtendedRecord = RecordUsingExtendedRecord(
-            er = ExtendedRecord(
-                foo = false
+            mEr = ExtendedRecord(
+                mFoo = false
             )
         )
     }

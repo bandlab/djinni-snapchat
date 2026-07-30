@@ -3,14 +3,10 @@
 
 package com.dropbox.djinni.test
 
-// Impl of TestDurationStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppTestDurationStatics : TestDurationStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the TestDuration static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppTestDurationStatics : TestDuration {
 
     override fun hoursString(dt: java.time.Duration): String = hoursString_native(dt)
     private external fun hoursString_native(dt: java.time.Duration): String

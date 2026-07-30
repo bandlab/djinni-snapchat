@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class NestedCollection(
-    val setList: List<Set<String>>,
+    val mSetList: List<Set<String>>,
 )

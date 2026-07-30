@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for ConflictUser -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppConflictUserStatics.
-class CppConflictUser private constructor(private val nativeRef: Long) : ConflictUser {
+internal class CppConflictUser private constructor(private val nativeRef: Long) : ConflictUser {
     private val destroyed = AtomicBoolean(false)
 
     init {
@@ -23,11 +23,11 @@ class CppConflictUser private constructor(private val nativeRef: Long) : Conflic
     }
     private external fun native_Conflict(_nativeRef: Long): Conflict?
 
-    override fun conflictArg(cs: Set<Conflict?>): Boolean {
+    override fun conflictArg(cs: Set<Conflict>): Boolean {
         assert(!destroyed.get()) { "trying to use a destroyed object" }
         return native_conflictArg(nativeRef, cs)
     }
-    private external fun native_conflictArg(_nativeRef: Long, cs: Set<Conflict?>): Boolean
+    private external fun native_conflictArg(_nativeRef: Long, cs: Set<Conflict>): Boolean
 
     companion object {
         @JvmStatic

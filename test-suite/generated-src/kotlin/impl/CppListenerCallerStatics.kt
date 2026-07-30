@@ -3,16 +3,11 @@
 
 package com.dropbox.djinni.test
 
-// Impl of ListenerCallerStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppListenerCallerStatics : ListenerCallerStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the ListenerCaller static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppListenerCallerStatics : ListenerCallerStatics {
 
-    override fun init(firstL: FirstListener?, secondL: SecondListener?): ListenerCaller =
-        init_native(firstL, secondL) ?: throw IllegalStateException("listener_caller.init returned null")
+    override fun init(firstL: FirstListener?, secondL: SecondListener?): ListenerCaller? = init_native(firstL, secondL)
     private external fun init_native(firstL: FirstListener?, secondL: SecondListener?): ListenerCaller?
 }

@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class PrimitiveList(
-    val list: List<Long>,
+    val mList: List<Long>,
 )

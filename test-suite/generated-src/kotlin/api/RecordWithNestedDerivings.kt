@@ -4,17 +4,17 @@
 package com.dropbox.djinni.test
 
 data class RecordWithNestedDerivings(
-    val key: Int,
-    val rec: RecordWithDerivings,
+    val mKey: Int,
+    val mRec: RecordWithDerivings,
 ) : Comparable<RecordWithNestedDerivings> {
 
     override fun compareTo(other: RecordWithNestedDerivings): Int {
         var tempResult: Int
-        tempResult = this.key.compareTo(other.key)
+        tempResult = this.mKey.compareTo(other.mKey)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.rec.compareTo(other.rec)
+        tempResult = this.mRec.compareTo(other.mRec)
         if (tempResult != 0) {
             return tempResult
         }

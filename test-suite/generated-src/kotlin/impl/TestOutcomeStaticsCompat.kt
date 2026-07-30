@@ -3,23 +3,50 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `TestOutcome.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppTestOutcomeStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: TestOutcomeStatics by lazy(LazyThreadSafetyMode.NONE) { CppTestOutcomeStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun TestOutcome.Companion.getSuccessOutcome(): com.snapchat.djinni.Outcome<String, Int> = instance.getSuccessOutcome()
+// Source-compat hatch: old `TestOutcome.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppTestOutcomeStatics singleton (also reused
+// by AudioCoreProvidersImpl).
 
-fun TestOutcome.Companion.getErrorOutcome(): com.snapchat.djinni.Outcome<String, Int> = instance.getErrorOutcome()
+fun TestOutcome.Companion.getSuccessOutcome(): com.snapchat.djinni.Outcome<String, Int> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.getSuccessOutcome()
+}
 
-fun TestOutcome.Companion.putSuccessOutcome(x: com.snapchat.djinni.Outcome<String, Int>): String = instance.putSuccessOutcome(x)
+fun TestOutcome.Companion.getErrorOutcome(): com.snapchat.djinni.Outcome<String, Int> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.getErrorOutcome()
+}
 
-fun TestOutcome.Companion.putErrorOutcome(x: com.snapchat.djinni.Outcome<String, Int>): Int = instance.putErrorOutcome(x)
+fun TestOutcome.Companion.putSuccessOutcome(x: com.snapchat.djinni.Outcome<String, Int>): String {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.putSuccessOutcome(x)
+}
 
-fun TestOutcome.Companion.getNestedSuccessOutcome(): NestedOutcome = instance.getNestedSuccessOutcome()
+fun TestOutcome.Companion.putErrorOutcome(x: com.snapchat.djinni.Outcome<String, Int>): Int {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.putErrorOutcome(x)
+}
 
-fun TestOutcome.Companion.getNestedErrorOutcome(): NestedOutcome = instance.getNestedErrorOutcome()
+fun TestOutcome.Companion.getNestedSuccessOutcome(): NestedOutcome {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.getNestedSuccessOutcome()
+}
 
-fun TestOutcome.Companion.putNestedSuccessOutcome(x: NestedOutcome): Int = instance.putNestedSuccessOutcome(x)
+fun TestOutcome.Companion.getNestedErrorOutcome(): NestedOutcome {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.getNestedErrorOutcome()
+}
 
-fun TestOutcome.Companion.putNestedErrorOutcome(x: NestedOutcome): String = instance.putNestedErrorOutcome(x)
+fun TestOutcome.Companion.putNestedSuccessOutcome(x: NestedOutcome): Int {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.putNestedSuccessOutcome(x)
+}
+
+fun TestOutcome.Companion.putNestedErrorOutcome(x: NestedOutcome): String {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestOutcomeStatics.putNestedErrorOutcome(x)
+}

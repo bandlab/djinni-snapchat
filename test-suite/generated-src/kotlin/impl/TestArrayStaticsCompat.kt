@@ -3,15 +3,30 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `TestArray.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppTestArrayStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: TestArrayStatics by lazy(LazyThreadSafetyMode.NONE) { CppTestArrayStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun TestArray.Companion.testStringArray(a: Array<String>): Array<String> = instance.testStringArray(a)
+// Source-compat hatch: old `TestArray.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppTestArrayStatics singleton (also reused
+// by AudioCoreProvidersImpl).
 
-fun TestArray.Companion.testIntArray(a: IntArray): IntArray = instance.testIntArray(a)
+fun TestArray.Companion.testStringArray(a: Array<String>): Array<String> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestArrayStatics.testStringArray(a)
+}
 
-fun TestArray.Companion.testRecordArray(a: Array<Vec2>): Array<Vec2> = instance.testRecordArray(a)
+fun TestArray.Companion.testIntArray(a: IntArray): IntArray {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestArrayStatics.testIntArray(a)
+}
 
-fun TestArray.Companion.testArrayOfArray(a: Array<IntArray>): Array<IntArray> = instance.testArrayOfArray(a)
+fun TestArray.Companion.testRecordArray(a: Array<Vec2>): Array<Vec2> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestArrayStatics.testRecordArray(a)
+}
+
+fun TestArray.Companion.testArrayOfArray(a: Array<IntArray>): Array<IntArray> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestArrayStatics.testArrayOfArray(a)
+}

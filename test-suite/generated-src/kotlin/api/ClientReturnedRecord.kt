@@ -5,7 +5,7 @@ package com.dropbox.djinni.test
 
 /** Record returned by a client */
 data class ClientReturnedRecord(
-    val recordId: Long,
-    val content: String,
-    val misc: String?,
+    val mRecordId: Long,
+    val mContent: String,
+    val mMisc: String?,
 )

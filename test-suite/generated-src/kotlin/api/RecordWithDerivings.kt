@@ -4,47 +4,47 @@
 package com.dropbox.djinni.test
 
 data class RecordWithDerivings(
-    val eight: Byte,
-    val sixteen: Short,
-    val thirtytwo: Int,
-    val sixtyfour: Long,
-    val fthirtytwo: Float,
-    val fsixtyfour: Double,
-    val d: java.util.Date,
-    val s: String,
+    val mEight: Byte,
+    val mSixteen: Short,
+    val mThirtytwo: Int,
+    val mSixtyfour: Long,
+    val mFthirtytwo: Float,
+    val mFsixtyfour: Double,
+    val mD: java.util.Date,
+    val mS: String,
 ) : Comparable<RecordWithDerivings> {
 
     override fun compareTo(other: RecordWithDerivings): Int {
         var tempResult: Int
-        tempResult = this.eight.compareTo(other.eight)
+        tempResult = this.mEight.compareTo(other.mEight)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.sixteen.compareTo(other.sixteen)
+        tempResult = this.mSixteen.compareTo(other.mSixteen)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.thirtytwo.compareTo(other.thirtytwo)
+        tempResult = this.mThirtytwo.compareTo(other.mThirtytwo)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.sixtyfour.compareTo(other.sixtyfour)
+        tempResult = this.mSixtyfour.compareTo(other.mSixtyfour)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.fthirtytwo.compareTo(other.fthirtytwo)
+        tempResult = this.mFthirtytwo.compareTo(other.mFthirtytwo)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.fsixtyfour.compareTo(other.fsixtyfour)
+        tempResult = this.mFsixtyfour.compareTo(other.mFsixtyfour)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.d.compareTo(other.d)
+        tempResult = this.mD.compareTo(other.mD)
         if (tempResult != 0) {
             return tempResult
         }
-        tempResult = this.s.compareTo(other.s)
+        tempResult = this.mS.compareTo(other.mS)
         if (tempResult != 0) {
             return tempResult
         }

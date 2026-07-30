@@ -3,33 +3,75 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `ProtoTests.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppProtoTestsStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: ProtoTestsStatics by lazy(LazyThreadSafetyMode.NONE) { CppProtoTestsStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun ProtoTests.Companion.protoToStrings(x: djinni.test.Test.AddressBook): List<String> = instance.protoToStrings(x)
+// Source-compat hatch: old `ProtoTests.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppProtoTestsStatics singleton (also reused
+// by AudioCoreProvidersImpl).
 
-fun ProtoTests.Companion.stringsToProto(x: List<String>): djinni.test.Test.AddressBook = instance.stringsToProto(x)
+fun ProtoTests.Companion.protoToStrings(x: djinni.test.Test.AddressBook): List<String> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.protoToStrings(x)
+}
 
-fun ProtoTests.Companion.embeddedProtoToString(x: RecordWithEmbeddedProto): String = instance.embeddedProtoToString(x)
+fun ProtoTests.Companion.stringsToProto(x: List<String>): djinni.test.Test.AddressBook {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.stringsToProto(x)
+}
 
-fun ProtoTests.Companion.stringToEmbeddedProto(x: String): RecordWithEmbeddedProto = instance.stringToEmbeddedProto(x)
+fun ProtoTests.Companion.embeddedProtoToString(x: RecordWithEmbeddedProto): String {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.embeddedProtoToString(x)
+}
 
-fun ProtoTests.Companion.cppProtoToString(x: djinni.test2.Test2.PersistingState): String = instance.cppProtoToString(x)
+fun ProtoTests.Companion.stringToEmbeddedProto(x: String): RecordWithEmbeddedProto {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.stringToEmbeddedProto(x)
+}
 
-fun ProtoTests.Companion.stringToCppProto(x: String): djinni.test2.Test2.PersistingState = instance.stringToCppProto(x)
+fun ProtoTests.Companion.cppProtoToString(x: djinni.test2.Test2.PersistingState): String {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.cppProtoToString(x)
+}
 
-fun ProtoTests.Companion.embeddedCppProtoToString(x: RecordWithEmbeddedCppProto): String = instance.embeddedCppProtoToString(x)
+fun ProtoTests.Companion.stringToCppProto(x: String): djinni.test2.Test2.PersistingState {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.stringToCppProto(x)
+}
 
-fun ProtoTests.Companion.stringToEmbeddedCppProto(x: String): RecordWithEmbeddedCppProto = instance.stringToEmbeddedCppProto(x)
+fun ProtoTests.Companion.embeddedCppProtoToString(x: RecordWithEmbeddedCppProto): String {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.embeddedCppProtoToString(x)
+}
 
-fun ProtoTests.Companion.protoListToStrings(x: List<djinni.test.Test.Person>): List<String> = instance.protoListToStrings(x)
+fun ProtoTests.Companion.stringToEmbeddedCppProto(x: String): RecordWithEmbeddedCppProto {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.stringToEmbeddedCppProto(x)
+}
 
-fun ProtoTests.Companion.stringsToProtoList(x: List<String>): List<djinni.test.Test.Person> = instance.stringsToProtoList(x)
+fun ProtoTests.Companion.protoListToStrings(x: List<djinni.test.Test.Person>): List<String> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.protoListToStrings(x)
+}
 
-fun ProtoTests.Companion.optionalProtoToString(x: djinni.test.Test.Person?): String = instance.optionalProtoToString(x)
+fun ProtoTests.Companion.stringsToProtoList(x: List<String>): List<djinni.test.Test.Person> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.stringsToProtoList(x)
+}
 
-fun ProtoTests.Companion.stringToOptionalProto(x: String): djinni.test.Test.Person? = instance.stringToOptionalProto(x)
+fun ProtoTests.Companion.optionalProtoToString(x: djinni.test.Test.Person?): String {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.optionalProtoToString(x)
+}
 
-fun ProtoTests.Companion.stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<djinni.test.Test.Person, Int> = instance.stringToProtoOutcome(x)
+fun ProtoTests.Companion.stringToOptionalProto(x: String): djinni.test.Test.Person? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.stringToOptionalProto(x)
+}
+
+fun ProtoTests.Companion.stringToProtoOutcome(x: String): com.snapchat.djinni.Outcome<djinni.test.Test.Person, Int> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppProtoTestsStatics.stringToProtoOutcome(x)
+}

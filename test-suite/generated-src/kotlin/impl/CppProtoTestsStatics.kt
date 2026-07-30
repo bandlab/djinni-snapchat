@@ -3,14 +3,10 @@
 
 package com.dropbox.djinni.test
 
-// Impl of ProtoTestsStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppProtoTestsStatics : ProtoTestsStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the ProtoTests static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppProtoTestsStatics : ProtoTests {
 
     override fun protoToStrings(x: djinni.test.Test.AddressBook): List<String> = protoToStrings_native(x)
     private external fun protoToStrings_native(x: djinni.test.Test.AddressBook): List<String>

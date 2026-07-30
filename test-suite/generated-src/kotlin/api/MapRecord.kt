@@ -4,6 +4,6 @@
 package com.dropbox.djinni.test
 
 data class MapRecord(
-    val map: Map<String, Long>,
-    val imap: Map<Int, Int>,
+    val mMap: Map<String, Long>,
+    val mImap: Map<Int, Int>,
 )

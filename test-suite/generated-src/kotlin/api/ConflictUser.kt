@@ -5,5 +5,5 @@ package com.dropbox.djinni.test
 
 interface ConflictUser {
     fun Conflict(): Conflict?
-    fun conflictArg(cs: Set<Conflict?>): Boolean
+    fun conflictArg(cs: Set<Conflict>): Boolean
 }

@@ -4,6 +4,6 @@
 package com.dropbox.djinni.test
 
 data class Vec2(
-    val x: Int,
-    val y: Int,
+    val mX: Int,
+    val mY: Int,
 )

@@ -36,8 +36,8 @@ class Constants {
         const val STRING_CONSTANT: String = "string-constant"
         val OPT_STRING_CONSTANT: String? = "string-constant"
         val OBJECT_CONSTANT: ConstantRecord = ConstantRecord(
-            someInteger = I32_CONSTANT,
-            someString = STRING_CONSTANT
+            mSomeInteger = I32_CONSTANT,
+            mSomeString = STRING_CONSTANT
         )
         /**
          * No support for null optional constants

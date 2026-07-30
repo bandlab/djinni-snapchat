@@ -3,7 +3,14 @@
 
 package com.dropbox.djinni.test
 
+// Static-only utility surface, exposed as an injectable service (no language-level statics).
+// Depend on THIS at call sites so the native surface stays hidden and mockable; a real
+// instance comes from CppFlagRoundtripStatics (impl), whose construction is the init gate.
 interface FlagRoundtrip {
+    fun roundtripAccess(flag: java.util.EnumSet<AccessFlags>): java.util.EnumSet<AccessFlags>
+    fun roundtripEmpty(flag: java.util.EnumSet<EmptyFlags>): java.util.EnumSet<EmptyFlags>
+    fun roundtripAccessBoxed(flag: java.util.EnumSet<AccessFlags>?): java.util.EnumSet<AccessFlags>?
+    fun roundtripEmptyBoxed(flag: java.util.EnumSet<EmptyFlags>?): java.util.EnumSet<EmptyFlags>?
 
     companion object {
     }

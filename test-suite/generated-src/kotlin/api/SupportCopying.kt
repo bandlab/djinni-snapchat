@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class SupportCopying(
-    val x: Int,
+    val mX: Int,
 )

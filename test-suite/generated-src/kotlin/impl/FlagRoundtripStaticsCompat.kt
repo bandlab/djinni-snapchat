@@ -3,15 +3,30 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `FlagRoundtrip.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppFlagRoundtripStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: FlagRoundtripStatics by lazy(LazyThreadSafetyMode.NONE) { CppFlagRoundtripStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun FlagRoundtrip.Companion.roundtripAccess(flag: java.util.EnumSet<AccessFlags>): java.util.EnumSet<AccessFlags> = instance.roundtripAccess(flag)
+// Source-compat hatch: old `FlagRoundtrip.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppFlagRoundtripStatics singleton (also reused
+// by AudioCoreProvidersImpl).
 
-fun FlagRoundtrip.Companion.roundtripEmpty(flag: java.util.EnumSet<EmptyFlags>): java.util.EnumSet<EmptyFlags> = instance.roundtripEmpty(flag)
+fun FlagRoundtrip.Companion.roundtripAccess(flag: java.util.EnumSet<AccessFlags>): java.util.EnumSet<AccessFlags> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppFlagRoundtripStatics.roundtripAccess(flag)
+}
 
-fun FlagRoundtrip.Companion.roundtripAccessBoxed(flag: java.util.EnumSet<AccessFlags>?): java.util.EnumSet<AccessFlags>? = instance.roundtripAccessBoxed(flag)
+fun FlagRoundtrip.Companion.roundtripEmpty(flag: java.util.EnumSet<EmptyFlags>): java.util.EnumSet<EmptyFlags> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppFlagRoundtripStatics.roundtripEmpty(flag)
+}
 
-fun FlagRoundtrip.Companion.roundtripEmptyBoxed(flag: java.util.EnumSet<EmptyFlags>?): java.util.EnumSet<EmptyFlags>? = instance.roundtripEmptyBoxed(flag)
+fun FlagRoundtrip.Companion.roundtripAccessBoxed(flag: java.util.EnumSet<AccessFlags>?): java.util.EnumSet<AccessFlags>? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppFlagRoundtripStatics.roundtripAccessBoxed(flag)
+}
+
+fun FlagRoundtrip.Companion.roundtripEmptyBoxed(flag: java.util.EnumSet<EmptyFlags>?): java.util.EnumSet<EmptyFlags>? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppFlagRoundtripStatics.roundtripEmptyBoxed(flag)
+}

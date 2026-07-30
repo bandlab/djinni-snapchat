@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for FlagRoundtrip -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppFlagRoundtripStatics.
-class CppFlagRoundtrip private constructor(private val nativeRef: Long) : FlagRoundtrip {
+internal class CppFlagRoundtrip private constructor(private val nativeRef: Long) {
     private val destroyed = AtomicBoolean(false)
 
     init {

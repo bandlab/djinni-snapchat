@@ -3,14 +3,10 @@
 
 package com.dropbox.djinni.test
 
-// Impl of TestArrayStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppTestArrayStatics : TestArrayStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the TestArray static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppTestArrayStatics : TestArray {
 
     override fun testStringArray(a: Array<String>): Array<String> = testStringArray_native(a)
     private external fun testStringArray_native(a: Array<String>): Array<String>

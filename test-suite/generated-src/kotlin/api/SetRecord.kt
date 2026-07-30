@@ -4,6 +4,6 @@
 package com.dropbox.djinni.test
 
 data class SetRecord(
-    val set: Set<String>,
-    val iset: Set<Int>,
+    val mSet: Set<String>,
+    val mIset: Set<Int>,
 )

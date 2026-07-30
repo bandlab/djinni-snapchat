@@ -9,5 +9,5 @@ package com.dropbox.djinni.test
  * badly when it is.  However this test case ensures we at least don't crash.
  */
 data class VarnameRecord(
-    val Field: Byte,
+    val mField: Byte,
 )

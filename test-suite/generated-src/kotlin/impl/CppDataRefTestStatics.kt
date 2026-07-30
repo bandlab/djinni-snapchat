@@ -3,16 +3,12 @@
 
 package com.dropbox.djinni.test
 
-// Impl of DataRefTestStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppDataRefTestStatics : DataRefTestStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the DataRefTest static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppDataRefTestStatics {
 
-    override fun create(): DataRefTest =
+    fun create(): DataRefTest =
         create_native() ?: throw IllegalStateException("DataRefTest.create returned null")
     private external fun create_native(): DataRefTest?
 }

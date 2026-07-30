@@ -3,14 +3,10 @@
 
 package com.dropbox.djinni.test
 
-// Impl of TestHelpersStatics. Constructing this is the SINGLE place the native surface becomes
-// reachable, so it is the natural init gate: put your 'ensure .so loaded + initialized' hook
-// in the init block below. Kept as an injection seam -- the generator imposes no policy.
-class CppTestHelpersStatics : TestHelpersStatics {
-    init {
-        // INIT SEAM: ensure the native library is loaded/initialized here (app-injected),
-        // e.g. AudioCoreLib.load(). Left unspecified so no init policy is baked into codegen.
-    }
+// Internal singleton for the TestHelpers static surface -- never visible to consumers. Reached only
+// via the Companion hatch (legacy) + AudioCoreProviders. Stateless facade over the native
+// statics; readiness gating lives at those seams (AudioCoreInit), not here.
+internal object CppTestHelpersStatics : TestHelpers {
 
     /** Method with documentation */
     override fun getSetRecord(): SetRecord = getSetRecord_native()
@@ -82,8 +78,7 @@ class CppTestHelpersStatics : TestHelpersStatics {
     override fun tokenId(t: UserToken?): UserToken? = tokenId_native(t)
     private external fun tokenId_native(t: UserToken?): UserToken?
 
-    override fun createCppToken(): UserToken =
-        createCppToken_native() ?: throw IllegalStateException("test_helpers.createCppToken returned null")
+    override fun createCppToken(): UserToken? = createCppToken_native()
     private external fun createCppToken_native(): UserToken?
 
     override fun checkCppToken(t: UserToken?) {

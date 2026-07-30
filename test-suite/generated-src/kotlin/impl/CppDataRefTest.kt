@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for DataRefTest -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppDataRefTestStatics.
-class CppDataRefTest private constructor(private val nativeRef: Long) : DataRefTest {
+internal class CppDataRefTest private constructor(private val nativeRef: Long) : DataRefTest {
     private val destroyed = AtomicBoolean(false)
 
     init {

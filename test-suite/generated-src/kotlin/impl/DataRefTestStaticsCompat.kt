@@ -3,9 +3,15 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `DataRefTest.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppDataRefTestStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: DataRefTestStatics by lazy(LazyThreadSafetyMode.NONE) { CppDataRefTestStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun DataRefTest.Companion.create(): DataRefTest = instance.create()
+// Source-compat hatch: old `DataRefTest.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppDataRefTestStatics singleton (also reused
+// by AudioCoreProvidersImpl).
+
+fun DataRefTest.Companion.create(): DataRefTest {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppDataRefTestStatics.create()
+}

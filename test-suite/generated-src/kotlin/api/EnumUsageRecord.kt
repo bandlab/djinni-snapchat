@@ -4,9 +4,9 @@
 package com.dropbox.djinni.test
 
 data class EnumUsageRecord(
-    val e: Color,
-    val o: Color?,
-    val l: List<Color>,
-    val s: Set<Color>,
-    val m: Map<Color, Color>,
+    val mE: Color,
+    val mO: Color?,
+    val mL: List<Color>,
+    val mS: Set<Color>,
+    val mM: Map<Color, Color>,
 )

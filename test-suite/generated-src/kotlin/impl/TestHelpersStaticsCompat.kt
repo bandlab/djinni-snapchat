@@ -3,85 +3,205 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `TestHelpers.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppTestHelpersStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: TestHelpersStatics by lazy(LazyThreadSafetyMode.NONE) { CppTestHelpersStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun TestHelpers.Companion.getSetRecord(): SetRecord = instance.getSetRecord()
+// Source-compat hatch: old `TestHelpers.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppTestHelpersStatics singleton (also reused
+// by AudioCoreProvidersImpl).
 
-fun TestHelpers.Companion.checkSetRecord(rec: SetRecord): Boolean = instance.checkSetRecord(rec)
+fun TestHelpers.Companion.getSetRecord(): SetRecord {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getSetRecord()
+}
 
-fun TestHelpers.Companion.getPrimitiveList(): PrimitiveList = instance.getPrimitiveList()
+fun TestHelpers.Companion.checkSetRecord(rec: SetRecord): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkSetRecord(rec)
+}
 
-fun TestHelpers.Companion.checkPrimitiveList(pl: PrimitiveList): Boolean = instance.checkPrimitiveList(pl)
+fun TestHelpers.Companion.getPrimitiveList(): PrimitiveList {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getPrimitiveList()
+}
 
-fun TestHelpers.Companion.getNestedCollection(): NestedCollection = instance.getNestedCollection()
+fun TestHelpers.Companion.checkPrimitiveList(pl: PrimitiveList): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkPrimitiveList(pl)
+}
 
-fun TestHelpers.Companion.checkNestedCollection(nc: NestedCollection): Boolean = instance.checkNestedCollection(nc)
+fun TestHelpers.Companion.getNestedCollection(): NestedCollection {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getNestedCollection()
+}
 
-fun TestHelpers.Companion.getMap(): Map<String, Long> = instance.getMap()
+fun TestHelpers.Companion.checkNestedCollection(nc: NestedCollection): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkNestedCollection(nc)
+}
 
-fun TestHelpers.Companion.checkMap(m: Map<String, Long>): Boolean = instance.checkMap(m)
+fun TestHelpers.Companion.getMap(): Map<String, Long> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getMap()
+}
 
-fun TestHelpers.Companion.getEmptyMap(): Map<String, Long> = instance.getEmptyMap()
+fun TestHelpers.Companion.checkMap(m: Map<String, Long>): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkMap(m)
+}
 
-fun TestHelpers.Companion.checkEmptyMap(m: Map<String, Long>): Boolean = instance.checkEmptyMap(m)
+fun TestHelpers.Companion.getEmptyMap(): Map<String, Long> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getEmptyMap()
+}
 
-fun TestHelpers.Companion.getMapListRecord(): MapListRecord = instance.getMapListRecord()
+fun TestHelpers.Companion.checkEmptyMap(m: Map<String, Long>): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkEmptyMap(m)
+}
 
-fun TestHelpers.Companion.checkMapListRecord(m: MapListRecord): Boolean = instance.checkMapListRecord(m)
+fun TestHelpers.Companion.getMapListRecord(): MapListRecord {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getMapListRecord()
+}
 
-fun TestHelpers.Companion.checkClientInterfaceAscii(i: ClientInterface?) = instance.checkClientInterfaceAscii(i)
+fun TestHelpers.Companion.checkMapListRecord(m: MapListRecord): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkMapListRecord(m)
+}
 
-fun TestHelpers.Companion.checkClientInterfaceNonascii(i: ClientInterface?) = instance.checkClientInterfaceNonascii(i)
+fun TestHelpers.Companion.checkClientInterfaceAscii(i: ClientInterface?) {
+    runBlocking { AudioCoreInit.awaitReady() }
+    CppTestHelpersStatics.checkClientInterfaceAscii(i)
+}
 
-fun TestHelpers.Companion.checkClientInterfaceArgs(i: ClientInterface?) = instance.checkClientInterfaceArgs(i)
+fun TestHelpers.Companion.checkClientInterfaceNonascii(i: ClientInterface?) {
+    runBlocking { AudioCoreInit.awaitReady() }
+    CppTestHelpersStatics.checkClientInterfaceNonascii(i)
+}
 
-fun TestHelpers.Companion.checkEnumMap(m: Map<Color, String>) = instance.checkEnumMap(m)
+fun TestHelpers.Companion.checkClientInterfaceArgs(i: ClientInterface?) {
+    runBlocking { AudioCoreInit.awaitReady() }
+    CppTestHelpersStatics.checkClientInterfaceArgs(i)
+}
 
-fun TestHelpers.Companion.checkEnum(c: Color) = instance.checkEnum(c)
+fun TestHelpers.Companion.checkEnumMap(m: Map<Color, String>) {
+    runBlocking { AudioCoreInit.awaitReady() }
+    CppTestHelpersStatics.checkEnumMap(m)
+}
 
-fun TestHelpers.Companion.tokenId(t: UserToken?): UserToken? = instance.tokenId(t)
+fun TestHelpers.Companion.checkEnum(c: Color) {
+    runBlocking { AudioCoreInit.awaitReady() }
+    CppTestHelpersStatics.checkEnum(c)
+}
 
-fun TestHelpers.Companion.createCppToken(): UserToken = instance.createCppToken()
+fun TestHelpers.Companion.tokenId(t: UserToken?): UserToken? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.tokenId(t)
+}
 
-fun TestHelpers.Companion.checkCppToken(t: UserToken?) = instance.checkCppToken(t)
+fun TestHelpers.Companion.createCppToken(): UserToken? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.createCppToken()
+}
 
-fun TestHelpers.Companion.cppTokenId(t: UserToken?): Long = instance.cppTokenId(t)
+fun TestHelpers.Companion.checkCppToken(t: UserToken?) {
+    runBlocking { AudioCoreInit.awaitReady() }
+    CppTestHelpersStatics.checkCppToken(t)
+}
 
-fun TestHelpers.Companion.checkTokenType(t: UserToken?, type: String) = instance.checkTokenType(t, type)
+fun TestHelpers.Companion.cppTokenId(t: UserToken?): Long {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.cppTokenId(t)
+}
 
-fun TestHelpers.Companion.returnNone(): Int? = instance.returnNone()
+fun TestHelpers.Companion.checkTokenType(t: UserToken?, type: String) {
+    runBlocking { AudioCoreInit.awaitReady() }
+    CppTestHelpersStatics.checkTokenType(t, type)
+}
 
-fun TestHelpers.Companion.assortedPrimitivesId(i: AssortedPrimitives): AssortedPrimitives = instance.assortedPrimitivesId(i)
+fun TestHelpers.Companion.returnNone(): Int? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.returnNone()
+}
 
-fun TestHelpers.Companion.idBinary(b: ByteArray): ByteArray = instance.idBinary(b)
+fun TestHelpers.Companion.assortedPrimitivesId(i: AssortedPrimitives): AssortedPrimitives {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.assortedPrimitivesId(i)
+}
 
-fun TestHelpers.Companion.getAsyncResult(): com.snapchat.djinni.Future<Int> = instance.getAsyncResult()
+fun TestHelpers.Companion.idBinary(b: ByteArray): ByteArray {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.idBinary(b)
+}
 
-fun TestHelpers.Companion.futureRoundtrip(f: com.snapchat.djinni.Future<Int>): com.snapchat.djinni.Future<String> = instance.futureRoundtrip(f)
+fun TestHelpers.Companion.getAsyncResult(): com.snapchat.djinni.Future<Int> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getAsyncResult()
+}
 
-fun TestHelpers.Companion.asyncEarlyThrow(): com.snapchat.djinni.Future<Int> = instance.asyncEarlyThrow()
+fun TestHelpers.Companion.futureRoundtrip(f: com.snapchat.djinni.Future<Int>): com.snapchat.djinni.Future<String> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.futureRoundtrip(f)
+}
 
-fun TestHelpers.Companion.voidAsyncMethod(f: com.snapchat.djinni.Future<Unit>): com.snapchat.djinni.Future<Unit> = instance.voidAsyncMethod(f)
+fun TestHelpers.Companion.asyncEarlyThrow(): com.snapchat.djinni.Future<Int> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.asyncEarlyThrow()
+}
 
-fun TestHelpers.Companion.addOneIfPresent(f: com.snapchat.djinni.Future<Int?>): com.snapchat.djinni.Future<Int?> = instance.addOneIfPresent(f)
+fun TestHelpers.Companion.voidAsyncMethod(f: com.snapchat.djinni.Future<Unit>): com.snapchat.djinni.Future<Unit> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.voidAsyncMethod(f)
+}
 
-fun TestHelpers.Companion.returnExceptionString(f: com.snapchat.djinni.Future<Int>): com.snapchat.djinni.Future<String> = instance.returnExceptionString(f)
+fun TestHelpers.Companion.addOneIfPresent(f: com.snapchat.djinni.Future<Int?>): com.snapchat.djinni.Future<Int?> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.addOneIfPresent(f)
+}
 
-fun TestHelpers.Companion.checkAsyncInterface(i: AsyncInterface?): com.snapchat.djinni.Future<String> = instance.checkAsyncInterface(i)
+fun TestHelpers.Companion.returnExceptionString(f: com.snapchat.djinni.Future<Int>): com.snapchat.djinni.Future<String> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.returnExceptionString(f)
+}
 
-fun TestHelpers.Companion.checkAsyncComposition(i: AsyncInterface?): com.snapchat.djinni.Future<String> = instance.checkAsyncComposition(i)
+fun TestHelpers.Companion.checkAsyncInterface(i: AsyncInterface?): com.snapchat.djinni.Future<String> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkAsyncInterface(i)
+}
 
-fun TestHelpers.Companion.getOptionalList(): List<String?> = instance.getOptionalList()
+fun TestHelpers.Companion.checkAsyncComposition(i: AsyncInterface?): com.snapchat.djinni.Future<String> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkAsyncComposition(i)
+}
 
-fun TestHelpers.Companion.checkOptionalList(ol: List<String?>): Boolean = instance.checkOptionalList(ol)
+fun TestHelpers.Companion.getOptionalList(): List<String?> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getOptionalList()
+}
 
-fun TestHelpers.Companion.getOptionalSet(): Set<String?> = instance.getOptionalSet()
+fun TestHelpers.Companion.checkOptionalList(ol: List<String?>): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkOptionalList(ol)
+}
 
-fun TestHelpers.Companion.checkOptionalSet(os: Set<String?>): Boolean = instance.checkOptionalSet(os)
+fun TestHelpers.Companion.getOptionalSet(): Set<String?> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getOptionalSet()
+}
 
-fun TestHelpers.Companion.getOptionalMap(): Map<String?, String?> = instance.getOptionalMap()
+fun TestHelpers.Companion.checkOptionalSet(os: Set<String?>): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkOptionalSet(os)
+}
 
-fun TestHelpers.Companion.checkOptionalMap(om: Map<String?, String?>): Boolean = instance.checkOptionalMap(om)
+fun TestHelpers.Companion.getOptionalMap(): Map<String?, String?> {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.getOptionalMap()
+}
+
+fun TestHelpers.Companion.checkOptionalMap(om: Map<String?, String?>): Boolean {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppTestHelpersStatics.checkOptionalMap(om)
+}

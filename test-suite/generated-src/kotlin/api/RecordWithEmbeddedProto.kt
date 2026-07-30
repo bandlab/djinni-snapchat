@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class RecordWithEmbeddedProto(
-    val person: djinni.test.Test.Person,
+    val mPerson: djinni.test.Test.Person,
 )

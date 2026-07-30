@@ -5,6 +5,6 @@ package com.dropbox.djinni.test
 
 /** Record for use in constants */
 data class ConstantRecord(
-    val someInteger: Int,
-    val someString: String,
+    val mSomeInteger: Int,
+    val mSomeString: String,
 )

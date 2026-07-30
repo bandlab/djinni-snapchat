@@ -42,8 +42,8 @@ interface ConstantsInterface {
         const val STRING_CONSTANT: String = "string-constant"
         val OPT_STRING_CONSTANT: String? = "string-constant"
         val OBJECT_CONSTANT: ConstantRecord = ConstantRecord(
-            someInteger = I32_CONSTANT,
-            someString = STRING_CONSTANT
+            mSomeInteger = I32_CONSTANT,
+            mSomeString = STRING_CONSTANT
         )
         /**
          * This constant will not be generated correctly with style FooBar

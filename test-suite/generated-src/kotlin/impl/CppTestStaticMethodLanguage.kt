@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for TestStaticMethodLanguage -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppTestStaticMethodLanguageStatics.
-class CppTestStaticMethodLanguage private constructor(private val nativeRef: Long) : TestStaticMethodLanguage {
+internal class CppTestStaticMethodLanguage private constructor(private val nativeRef: Long) : TestStaticMethodLanguage {
     private val destroyed = AtomicBoolean(false)
 
     init {

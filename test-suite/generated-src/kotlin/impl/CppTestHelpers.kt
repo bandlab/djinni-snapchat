@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // CppProxy for TestHelpers -- wraps a native C++ implementation. Instance methods only;
 // the (long) constructor, native_* methods and nativeDestroy(long) are the exact JVM members
 // the JNI layer / support-lib bind to. Static factories live on CppTestHelpersStatics.
-class CppTestHelpers private constructor(private val nativeRef: Long) : TestHelpers {
+internal class CppTestHelpers private constructor(private val nativeRef: Long) {
     private val destroyed = AtomicBoolean(false)
 
     init {

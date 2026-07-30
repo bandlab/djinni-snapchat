@@ -3,9 +3,15 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `ReturnOne.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppReturnOneStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: ReturnOneStatics by lazy(LazyThreadSafetyMode.NONE) { CppReturnOneStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun ReturnOne.Companion.getInstance(): ReturnOne = instance.getInstance()
+// Source-compat hatch: old `ReturnOne.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppReturnOneStatics singleton (also reused
+// by AudioCoreProvidersImpl).
+
+fun ReturnOne.Companion.getInstance(): ReturnOne? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppReturnOneStatics.getInstance()
+}

@@ -4,5 +4,5 @@
 package com.dropbox.djinni.test
 
 data class NestedOutcome(
-    val o: com.snapchat.djinni.Outcome<Int, String>,
+    val mO: com.snapchat.djinni.Outcome<Int, String>,
 )

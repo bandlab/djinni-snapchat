@@ -3,9 +3,15 @@
 
 package com.dropbox.djinni.test
 
-// Source-compat extensions: old `ListenerCaller.<static>(...)` call sites keep compiling (Kotlin; needs
-// the import). Backed by one lazy(NONE) CppListenerCallerStatics -- no synchronized check on hot static calls;
-// idempotent init + stateless delegator, so a first-call race is harmless.
-private val instance: ListenerCallerStatics by lazy(LazyThreadSafetyMode.NONE) { CppListenerCallerStatics() }
+import kotlinx.coroutines.runBlocking
 
-fun ListenerCaller.Companion.init(firstL: FirstListener?, secondL: SecondListener?): ListenerCaller = instance.init(firstL, secondL)
+// Source-compat hatch: old `ListenerCaller.<static>(...)` call sites keep compiling -- now init-SAFE.
+// Each hatch blocks on AudioCore readiness before touching the native surface, so a pre-init
+// call WAITS instead of crashing (old code pays with a blocked thread; new code should migrate
+// to the suspend AudioCoreProviders). Delegates to the internal CppListenerCallerStatics singleton (also reused
+// by AudioCoreProvidersImpl).
+
+fun ListenerCaller.Companion.init(firstL: FirstListener?, secondL: SecondListener?): ListenerCaller? {
+    runBlocking { AudioCoreInit.awaitReady() }
+    return CppListenerCallerStatics.init(firstL, secondL)
+}
