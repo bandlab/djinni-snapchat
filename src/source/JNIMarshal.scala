@@ -24,6 +24,10 @@ import djinni.meta._
 
 class JNIMarshal(spec: Spec) extends Marshal(spec) {
 
+  // The JNI backend serves exactly one JVM surface. When Kotlin is the sole JVM target (no Java
+  // output requested) it follows the Kotlin structure; otherwise it stays on the classic Java one.
+  private def jniForKotlin: Boolean = spec.kotlinOutFolder.isDefined && spec.javaOutFolder.isEmpty
+
   // For JNI typename() is always fully qualified and describes the mangled Java type to be used in field/method signatures
   override def typename(tm: MExpr): String = javaTypeSignature(tm)
   def typename(name: String, ty: TypeDef) = ty match {
@@ -105,10 +109,11 @@ class JNIMarshal(spec: Spec) extends Marshal(spec) {
       // Kotlin backend: records/params/returns use the read-only interfaces List/Set/Map (see
       // KotlinMarshal), so the JVM field/method descriptors must be the interface types, not the
       // concrete java.util.{ArrayList,HashSet,HashMap}. The support-lib still *creates* ArrayList/
-      // HashSet/HashMap at runtime (they are assignable to these interface-typed slots).
-      case MList => "Ljava/util/List;"
-      case MSet => "Ljava/util/Set;"
-      case MMap => "Ljava/util/Map;"
+      // HashSet/HashMap at runtime (they are assignable to these interface-typed slots). The Java
+      // backend keeps the concrete descriptors it has always emitted.
+      case MList => if (jniForKotlin) "Ljava/util/List;" else "Ljava/util/ArrayList;"
+      case MSet => if (jniForKotlin) "Ljava/util/Set;" else "Ljava/util/HashSet;"
+      case MMap => if (jniForKotlin) "Ljava/util/Map;" else "Ljava/util/HashMap;"
       case MArray => s"[${javaTypeSignature(tm.args.head)}"
       case MVoid => "Ljava/lang/Void;"
     }

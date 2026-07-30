@@ -27,6 +27,11 @@ import scala.collection.mutable
 
 class JNIGenerator(spec: Spec) extends Generator(spec) {
 
+  // The JNI backend serves exactly one JVM surface. When Kotlin is the sole JVM target (no Java
+  // output requested) it follows the Kotlin structure (top-level `Cpp<Name>` proxy + `Cpp<Name>Statics`);
+  // otherwise it stays on the classic Java one (nested `<Name>$CppProxy` + statics on the interface).
+  private def jniForKotlin: Boolean = spec.kotlinOutFolder.isDefined && spec.javaOutFolder.isEmpty
+
   val jniMarshal = new JNIMarshal(spec)
   val cppMarshal = new CppMarshal(spec)
   val javaMarshal = new JavaMarshal(spec)
@@ -208,8 +213,11 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
     // Kotlin backend: the Java-visible CppProxy is a TOP-LEVEL class `Cpp<Name>` (slash form below),
     // NOT the old nested `<Name>$CppProxy`. classLookup ends in exactly idJava.ty(ident), so we swap
     // that trailing segment for `Cpp<Name>`. (Statics -> `Cpp<Name>Statics`, derived where needed.)
+    // The Java backend keeps the nested `<Name>$CppProxy` it has always emitted.
     val simpleName = idJava.ty(ident)
-    val cppProxyClassLookup = classLookup.stripSuffix(simpleName) + "Cpp" + simpleName
+    val cppProxyClassLookup =
+      if (jniForKotlin) classLookup.stripSuffix(simpleName) + "Cpp" + simpleName
+      else classLookup + "$CppProxy"
 
     def writeJniPrototype(w: IndentWriter) {
       writeJniTypeParams(w, typeParams)
@@ -348,23 +356,33 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
           .replaceAllLiterally("_", "_1")
           .replaceAllLiterally(".", "_")
         val ifaceFqDotted = javaMarshal.fqTypename(ident, i)
+        val ifacePrefix = mungeClass(ifaceFqDotted)
         val cppProxyFqDotted = ifaceFqDotted.stripSuffix(simpleName) + "Cpp" + simpleName
         val proxyPrefix = mungeClass(cppProxyFqDotted)
         val staticsPrefix = mungeClass(cppProxyFqDotted + "Statics")
 
         def methodName(name: String, static: Boolean): String = {
           val methodNameMunged = name.replaceAllLiterally("_", "_1")
-          if (static)
-            s"${staticsPrefix}_$methodNameMunged"
-          else
-            s"${proxyPrefix}_$methodNameMunged"
+          if (jniForKotlin) {
+            if (static) s"${staticsPrefix}_$methodNameMunged"
+            else s"${proxyPrefix}_$methodNameMunged"
+          } else {
+            // Java backend: statics live on the interface class, instance methods on `<Name>$CppProxy`.
+            if (static) s"${ifacePrefix}_$methodNameMunged"
+            else s"${ifacePrefix}_00024CppProxy_$methodNameMunged"
+          }
         }
 
-        // Java-visible name of each native hook: proxy methods are `native_<m>`; interface statics are
-        // instance methods `<m>_native` on Cpp<Name>Statics. (nativeDestroy is emitted directly.)
+        // Java-visible name of each native hook: proxy methods are `native_<m>`. Kotlin interface
+        // statics are instance methods `<m>_native` on Cpp<Name>Statics; Java statics keep the bare
+        // `<m>` (a static native on the interface). (nativeDestroy is emitted directly.)
         def jniHookName(m: Interface.Method): String =
-          if (m.static) idJava.method(m.ident) + "_native"
-          else "native_" + idJava.method(m.ident)
+          if (jniForKotlin) {
+            if (m.static) idJava.method(m.ident) + "_native"
+            else "native_" + idJava.method(m.ident)
+          } else {
+            (if (m.static) "" else "native_") + idJava.method(m.ident)
+          }
 
         def nativeHook(name: String, static: Boolean, params: Iterable[Field], ret: Option[TypeRef], f: => Unit) = {
           val paramList = params.map(p => jniMarshal.paramType(p.ty) + " j_" + idJava.local(p.ident)).mkString(", ")
@@ -480,13 +498,17 @@ class JNIGenerator(spec: Spec) extends Generator(spec) {
           val i = ty.body.asInstanceOf[Interface]
           val (statics, proxys) = i.methods.partition(i => i.static)
 
-          // Kotlin backend class names: proxy -> Cpp<Name>, statics -> Cpp<Name>Statics.
+          // Kotlin backend class names: proxy -> Cpp<Name>, statics -> Cpp<Name>Statics. Java backend:
+          // proxy -> `<Name>$CppProxy`, statics registered on the interface class itself.
           val ifaceLookup = jniMarshal.undecoratedTypename(ty.ident, ty.body)
           val sName = idJava.ty(ty.ident)
-          val proxyLookup = ifaceLookup.stripSuffix(sName) + "Cpp" + sName
+          val proxyLookup =
+            if (jniForKotlin) ifaceLookup.stripSuffix(sName) + "Cpp" + sName
+            else ifaceLookup + "$CppProxy"
+          val staticsLookup = if (jniForKotlin) proxyLookup + "Statics" else ifaceLookup
           w.wl(s"djinni::jniRegisterNatives(env, ${q(proxyLookup)}, ${jniMarshal.helperClass(ty.ident)}ProxyRecords);")
           if (statics.nonEmpty) {
-            w.wl(s"djinni::jniRegisterNatives(env, ${q(proxyLookup + "Statics")}, ${jniMarshal.helperClass(ty.ident)}StaticRecords);")
+            w.wl(s"djinni::jniRegisterNatives(env, ${q(staticsLookup)}, ${jniMarshal.helperClass(ty.ident)}StaticRecords);")
           }
         }
       }
