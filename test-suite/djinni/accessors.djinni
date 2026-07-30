@@ -1,0 +1,32 @@
+# Exercises accessor->property synthesis. All interfaces are +c so a CppProxy is generated.
+accessors = interface +c {
+    # snake_case getter + paired setter -> var sampleRate
+    get_sample_rate(): i32;
+    set_sample_rate(v: i32);
+
+    # camelCase getter + paired setter -> var volume
+    getVolume(): f64;
+    setVolume(v: f64);
+
+    # is_ getter (no setter) -> val isMuted
+    is_muted(): bool;
+
+    # isX getter (no setter) -> val isReady
+    isReady(): bool;
+
+    # getter with no matching setter -> val name
+    get_name(): string;
+
+    # getter present but setter type mismatch -> stays val, setter stays fun
+    get_gain(): i32;
+    set_gain(v: string);
+
+    # not an accessor: has params -> stays fun
+    get_at(index: i32): i32;
+
+    # not an accessor: setup() -> stays fun (charAt guard)
+    setup();
+
+    # plain method
+    do_thing();
+}

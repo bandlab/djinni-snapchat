@@ -37,6 +37,7 @@ java_out="$base_dir/generated-src/java/com/dropbox/djinni/test"
 wasm_out="$base_dir/generated-src/wasm"
 ts_out="$base_dir/generated-src/ts"
 yaml_out="$base_dir/generated-src/yaml"
+kotlin_out="$base_dir/generated-src/kotlin"
 
 java_package="com.dropbox.djinni.test"
 
@@ -51,7 +52,7 @@ elif [ $# -eq 1 ]; then
         echo "Unexpected arguemnt: \"$command\"." 1>&2
         exit 1
     fi
-    for dir in "$temp_out" "$cpp_out" "$jni_out" "$java_out"; do
+    for dir in "$temp_out" "$cpp_out" "$jni_out" "$java_out" "$objc_out" "$wasm_out" "$ts_out" "$kotlin_out"; do
         if [ -e "$dir" ]; then
             echo "Deleting \"$dir\"..."
             rm -r "$dir"
@@ -62,13 +63,18 @@ elif [ $# -eq 1 ]; then
     exit
 fi
 
-# Build Djinni
-"$base_dir/../src/build.sh"
+# Build Djinni. Default is Bazel (src/build.sh + src/run-assume-built). For a
+# Bazel-free regen set DJINNI_NO_BAZEL=1 and DJINNI_RUNNER=<repo>/src/run-scalac
+# (the scalac runner self-builds, so no separate build step is needed).
+RUNNER="${DJINNI_RUNNER:-$base_dir/../src/run-assume-built}"
+if [ -z "${DJINNI_NO_BAZEL:-}" ]; then
+    "$base_dir/../src/build.sh"
+fi
 
 # Run Djinni generation
 [ ! -e "$temp_out" ] || rm -r "$temp_out"
 (cd "$base_dir" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -102,7 +108,7 @@ fi
     --yaml-prefix "test_" \
     \
     --idl "$wchar_in_relative" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -132,6 +138,9 @@ fi
     --ts-out "$temp_out_relative/ts" \
     --ts-module "test" \
     \
+    --kotlin-out "$temp_out_relative/kotlin" \
+    --kotlin-package $java_package \
+    \
     --list-in-files "./generated-src/inFileList.txt" \
     --list-out-files "./generated-src/outFileList.txt"\
     \
@@ -141,7 +150,7 @@ fi
     \
     --idl "$in_relative" \
     --idl-include-path "djinni/vendor" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -167,7 +176,7 @@ fi
     --objcpp-function-prologue-file "../../handwritten-src/cpp/objcpp-prologue.hpp" \
     \
     --idl "$prologue_in_relative" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -198,7 +207,7 @@ fi
     --ident-objc-const NativeFooBar! \
     \
     --idl "$ident_explicit_in_relative" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --java-nullable-annotation "javax.annotation.CheckForNull" \
@@ -235,7 +244,7 @@ fi
 # Make sure we can parse back our own generated YAML file
 cp "$base_dir/djinni/yaml-test.djinni" "$temp_out/yaml"
 (cd "$base_dir" && \
-"$base_dir/../src/run-assume-built" \
+"$RUNNER" \
     --java-out "$temp_out_relative/java" \
     --java-package $java_package \
     --ident-java-field mFooBar \
@@ -279,6 +288,16 @@ mirror "jni" "$temp_out/jni" "$jni_out"
 mirror "objc" "$temp_out/objc" "$objc_out"
 mirror "wasm" "$temp_out/wasm" "$wasm_out"
 mirror "ts" "$temp_out/ts" "$ts_out"
+mirror "kotlin" "$temp_out/kotlin" "$kotlin_out"
+
+# Optional gate: verify the Kotlin golden actually COMPILES clean under -Werror
+# (not just that its text is stable). Off by default so local regen stays fast;
+# CI should set DJINNI_VERIFY_KOTLIN=1. Downstream consumers build with
+# allWarningsAsErrors=true, so any generator warning must fail here first.
+if [ -n "${DJINNI_VERIFY_KOTLIN:-}" ]; then
+    echo "Verifying Kotlin golden compiles clean (-Werror)..."
+    "$base_dir/kotlin-compile-check/check.sh" || exit 1
+fi
 
 date > "$gen_stamp"
 

@@ -334,11 +334,16 @@ namespace djinni
 
     struct ListJniInfo
     {
+        // `clazz` (concrete) is used to CONSTRUCT in fromCpp; the read side (toCpp) uses the
+        // `java/util/List` interface so it accepts ANY List (e.g. Kotlin listOf() -> Arrays$ArrayList),
+        // not just java.util.ArrayList. Method IDs for size()/get() must come from the interface to be
+        // valid on arbitrary List implementations.
         const GlobalRef<jclass> clazz { jniFindClass("java/util/ArrayList") };
+        const GlobalRef<jclass> listClazz { jniFindClass("java/util/List") };
         const jmethodID constructor { jniGetMethodID(clazz.get(), "<init>", "(I)V") };
         const jmethodID method_add { jniGetMethodID(clazz.get(), "add", "(Ljava/lang/Object;)Z") };
-        const jmethodID method_get { jniGetMethodID(clazz.get(), "get", "(I)Ljava/lang/Object;") };
-        const jmethodID method_size { jniGetMethodID(clazz.get(), "size", "()I") };
+        const jmethodID method_get { jniGetMethodID(listClazz.get(), "get", "(I)Ljava/lang/Object;") };
+        const jmethodID method_size { jniGetMethodID(listClazz.get(), "size", "()I") };
     };
 
     template <class T>
@@ -357,7 +362,7 @@ namespace djinni
         {
             assert(j != nullptr);
             const auto& data = JniClass<ListJniInfo>::get();
-            assert(jniEnv->IsInstanceOf(j, data.clazz.get()));
+            assert(jniEnv->IsInstanceOf(j, data.listClazz.get()));
             auto size = jniEnv->CallIntMethod(j, data.method_size);
             jniExceptionCheck(jniEnv);
             auto c = CppType();
@@ -396,11 +401,14 @@ namespace djinni
 
     struct SetJniInfo
     {
+        // See ListJniInfo: concrete class constructs (fromCpp); the `java/util/Set` interface reads
+        // (toCpp) so any Set (e.g. Kotlin setOf() -> LinkedHashSet) is accepted.
         const GlobalRef<jclass> clazz { jniFindClass("java/util/HashSet") };
+        const GlobalRef<jclass> setClazz { jniFindClass("java/util/Set") };
         const jmethodID constructor { jniGetMethodID(clazz.get(), "<init>", "()V") };
         const jmethodID method_add { jniGetMethodID(clazz.get(), "add", "(Ljava/lang/Object;)Z") };
-        const jmethodID method_size { jniGetMethodID(clazz.get(), "size", "()I") };
-        const jmethodID method_iterator { jniGetMethodID(clazz.get(), "iterator", "()Ljava/util/Iterator;") };
+        const jmethodID method_size { jniGetMethodID(setClazz.get(), "size", "()I") };
+        const jmethodID method_iterator { jniGetMethodID(setClazz.get(), "iterator", "()Ljava/util/Iterator;") };
     };
 
     template <class T>
@@ -420,7 +428,7 @@ namespace djinni
             assert(j != nullptr);
             const auto& data = JniClass<SetJniInfo>::get();
             const auto& iteData = JniClass<IteratorJniInfo>::get();
-            assert(jniEnv->IsInstanceOf(j, data.clazz.get()));
+            assert(jniEnv->IsInstanceOf(j, data.setClazz.get()));
             auto size = jniEnv->CallIntMethod(j, data.method_size);
             jniExceptionCheck(jniEnv);
             auto c = CppType();
@@ -454,11 +462,14 @@ namespace djinni
 
     struct MapJniInfo
     {
+        // See ListJniInfo: concrete class constructs (fromCpp); the `java/util/Map` interface reads
+        // (toCpp) so any Map (e.g. Kotlin mapOf() -> SingletonMap/LinkedHashMap) is accepted.
         const GlobalRef<jclass> clazz { jniFindClass("java/util/HashMap") };
+        const GlobalRef<jclass> mapClazz { jniFindClass("java/util/Map") };
         const jmethodID constructor { jniGetMethodID(clazz.get(), "<init>", "()V") };
         const jmethodID method_put { jniGetMethodID(clazz.get(), "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;") };
-        const jmethodID method_size { jniGetMethodID(clazz.get(), "size", "()I") };
-        const jmethodID method_entrySet { jniGetMethodID(clazz.get(), "entrySet", "()Ljava/util/Set;") };
+        const jmethodID method_size { jniGetMethodID(mapClazz.get(), "size", "()I") };
+        const jmethodID method_entrySet { jniGetMethodID(mapClazz.get(), "entrySet", "()Ljava/util/Set;") };
     };
 
     struct EntrySetJniInfo
@@ -495,7 +506,7 @@ namespace djinni
             const auto& entrySetData = JniClass<EntrySetJniInfo>::get();
             const auto& entryData = JniClass<EntryJniInfo>::get();
             const auto& iteData = JniClass<IteratorJniInfo>::get();
-            assert(jniEnv->IsInstanceOf(j, data.clazz.get()));
+            assert(jniEnv->IsInstanceOf(j, data.mapClazz.get()));
             auto size = jniEnv->CallIntMethod(j, data.method_size);
             jniExceptionCheck(jniEnv);
             auto entrySet = LocalRef<jobject>(jniEnv, jniEnv->CallObjectMethod(j, data.method_entrySet));
