@@ -6,33 +6,58 @@ on:
       - main
   pull_request: {}
 
+# Bazel-free CI: the generator is built and run via src/run-scalac (JDK 8 + Maven-fetched
+# Scala 2.11 compiler), matching how the engine and test-suite regenerate. Two checks —
+# one per JVM backend surface: the classic Java one and the new Kotlin one.
 jobs:
-  build:
-    name: Build and Test
-    runs-on: macos-latest
+  java-backend:
+    name: Java backend (regenerate + golden drift)
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Cache bazel build results
-        uses: actions/cache@v2
-        env:
-          cache-name: bazel-cache
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
         with:
-          path: ~/.cache/bazel
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ github.ref }}
-          restore-keys: |
-            ${{ runner.os }}-${{ env.cache-name }}-main
+          distribution: temurin
+          java-version: '8'
 
-      - name: Build
-        run: bazel build //src:djinni
+      - name: Regenerate the test-suite (run-scalac)
+        run: |
+          export DJINNI_NO_BAZEL=1
+          export DJINNI_RUNNER="$PWD/src/run-scalac"
+          ./test-suite/run_djinni.sh
 
-      - name: Generate examples / check clean output
-        run: ./ci/generate.sh
+      - name: Verify goldens are in sync (no drift)
+        run: |
+          if [ -n "$(git status --porcelain test-suite/generated-src)" ]; then
+            echo "::error::Generated sources drifted from committed goldens. Run test-suite/run_djinni.sh and commit."
+            git status --porcelain test-suite/generated-src
+            git --no-pager diff test-suite/generated-src
+            exit 1
+          fi
+          echo "Goldens in sync."
 
-      - name: Test
-        run: bazel test --test_output=all //test-suite:djinni-java-tests  //test-suite:djinni-objc-tests
+  kotlin-backend:
+    name: Kotlin backend (compile -Werror)
+    runs-on: ubuntu-latest
+    env:
+      KOTLIN_VERSION: 2.1.20
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: External Test
-        working-directory: external-test
-        run: bazel run @djinni//src:djinni -- --help
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Install Kotlin compiler
+        run: |
+          curl -sSLo /tmp/kotlin.zip \
+            "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
+          unzip -q /tmp/kotlin.zip -d "$HOME"
+          echo "$HOME/kotlinc/bin" >> "$GITHUB_PATH"
+
+      - name: Kotlin golden compile check (-Werror)
+        run: ./test-suite/kotlin-compile-check/check.sh
