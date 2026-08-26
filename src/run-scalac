@@ -39,17 +39,25 @@ JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
 
 # --- dependency + Scala jars from Maven (the compiler is a plain dependency, run on $JAVA) ---------
 mkdir -p "$LIBS_DIR"
-declare -A JARS=(
-  ["scopt_2.11-3.2.0.jar"]="https://repo1.maven.org/maven2/com/github/scopt/scopt_2.11/3.2.0/scopt_2.11-3.2.0.jar"
-  ["scala-parser-combinators_2.11-1.0.1.jar"]="https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.11/1.0.1/scala-parser-combinators_2.11-1.0.1.jar"
-  ["snakeyaml-1.15.jar"]="https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.15/snakeyaml-1.15.jar"
-  ["scala-library-$SCALA_VERSION.jar"]="https://repo1.maven.org/maven2/org/scala-lang/scala-library/$SCALA_VERSION/scala-library-$SCALA_VERSION.jar"
-  ["scala-reflect-$SCALA_VERSION.jar"]="https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/$SCALA_VERSION/scala-reflect-$SCALA_VERSION.jar"
-  ["scala-compiler-$SCALA_VERSION.jar"]="https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/$SCALA_VERSION/scala-compiler-$SCALA_VERSION.jar"
-)
-for name in "${!JARS[@]}"; do
-  [ -f "$LIBS_DIR/$name" ] || curl -fsSL -o "$LIBS_DIR/$name" "${JARS[$name]}"
-done
+# A plain function rather than an associative array: macOS still ships bash 3.2
+# as /bin/bash, which has no `declare -A` -- it parses the string subscripts as
+# arithmetic ("invalid arithmetic operator") and silently skips every download.
+# This script runs at CMake configure time, so it has to work on a stock mac.
+fetch_jar() { # <filename> <url>
+  [ -f "$LIBS_DIR/$1" ] || curl -fsSL -o "$LIBS_DIR/$1" "$2"
+}
+fetch_jar "scopt_2.11-3.2.0.jar" \
+  "https://repo1.maven.org/maven2/com/github/scopt/scopt_2.11/3.2.0/scopt_2.11-3.2.0.jar"
+fetch_jar "scala-parser-combinators_2.11-1.0.1.jar" \
+  "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.11/1.0.1/scala-parser-combinators_2.11-1.0.1.jar"
+fetch_jar "snakeyaml-1.15.jar" \
+  "https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.15/snakeyaml-1.15.jar"
+fetch_jar "scala-library-$SCALA_VERSION.jar" \
+  "https://repo1.maven.org/maven2/org/scala-lang/scala-library/$SCALA_VERSION/scala-library-$SCALA_VERSION.jar"
+fetch_jar "scala-reflect-$SCALA_VERSION.jar" \
+  "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/$SCALA_VERSION/scala-reflect-$SCALA_VERSION.jar"
+fetch_jar "scala-compiler-$SCALA_VERSION.jar" \
+  "https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/$SCALA_VERSION/scala-compiler-$SCALA_VERSION.jar"
 SCALA_LIB="$LIBS_DIR/scala-library-$SCALA_VERSION.jar"
 DEP_CP="$LIBS_DIR/scopt_2.11-3.2.0.jar:$LIBS_DIR/scala-parser-combinators_2.11-1.0.1.jar:$LIBS_DIR/snakeyaml-1.15.jar:$SCALA_LIB"
 COMPILER_CP="$LIBS_DIR/scala-compiler-$SCALA_VERSION.jar:$LIBS_DIR/scala-reflect-$SCALA_VERSION.jar:$SCALA_LIB"
